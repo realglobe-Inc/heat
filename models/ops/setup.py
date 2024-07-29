@@ -48,6 +48,11 @@ def get_extensions():
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
     include_dirs = [extensions_dir]
+    print("sources:", sources)
+    print("include_dirs:", include_dirs)
+    print("extension", extension)
+    print("define_macros", define_macros)
+    print("extra_compile_args", extra_compile_args)
     ext_modules = [
         extension(
             "MultiScaleDeformableAttention",

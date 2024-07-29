@@ -13,7 +13,7 @@ def convrelu(in_channels, out_channels, kernel, padding):
 class ResNetBackbone(nn.Module):
     def __init__(self):
         super().__init__()
-        self.base_model = models.resnet50(pretrained=True)
+        self.base_model = models.resnet50(weights=None)
         self.base_layers = list(self.base_model.children())
 
         self.conv_original_size0 = convrelu(3, 64, 3, 1)
@@ -63,7 +63,7 @@ class ResNetUNet(nn.Module):
         self.return_ms_feat = ms_feat
         self.out_dim = out_dim
 
-        self.base_model = models.resnet50(pretrained=True)
+        self.base_model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
         self.base_layers = list(self.base_model.children())
 
         self.layer0 = nn.Sequential(*self.base_layers[:3])  # size=(N, 64, x.H/2, x.W/2)

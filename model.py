@@ -3,11 +3,11 @@ import torch
 import numpy as np
 import numpy.typing as npt
 
-from models.resnet import ResNetBackbone
-from models.corner_models import HeatCorner
-from models.edge_models import HeatEdge
-from datasets.data_utils import get_pixel_features
-from infer import get_results, postprocess_preds
+from .models.resnet import ResNetBackbone
+from .models.corner_models import HeatCorner
+from .models.edge_models import HeatEdge
+from .datasets.data_utils import get_pixel_features
+from .infer import get_results, postprocess_preds
 
 
 class HEAT:

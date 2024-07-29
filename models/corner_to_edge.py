@@ -11,9 +11,9 @@ viz_count = 0
 
 # pre-compute all combinations to generate edge candidates faster
 all_combibations = dict()
-for length in range(2, 351):
+for length in range(0, 351):
     ids = np.arange(length)
-    combs = np.array(list(itertools.combinations(ids, 2)))
+    combs = np.array(list(itertools.combinations(ids, 2)), dtype=np.int_)
     all_combibations[length] = combs
 
 
@@ -56,6 +56,7 @@ def process_annot(annot, do_round=True):
     corner_degrees = [len(annot[tuple(c)]) for c in corners]
     if do_round:
         corners = corners.round()
+        corners = np.clip(corners, 0, 255)
     return corners, edges, corner_degrees
 
 
@@ -138,6 +139,7 @@ def _get_edges(corners, edge_pairs):
     ind = np.lexsort(corners.T)
     corners = corners[ind]  # sorted by y, then x
     corners = corners.round()
+    corners = np.clip(corners, 0, 255)
     id_mapping = {old: new for new, old in enumerate(ind)}
 
     all_ids = all_combibations[len(corners)]
@@ -211,7 +213,7 @@ def get_infer_edge_pairs(corners, confs):
     edge_ids = all_combibations[len(corners)]
     edge_coords = corners[edge_ids]
 
-    edge_coords = torch.tensor(np.array(edge_coords)).unsqueeze(0).long()
+    edge_coords = torch.tensor(np.array(edge_coords)).unsqueeze(0).long().reshape(1, -1, 2, 2)
     mask = torch.zeros([edge_coords.shape[0], edge_coords.shape[1]]).bool()
     edge_ids = torch.tensor(np.array(edge_ids))
     return corners, confs, edge_coords, mask, edge_ids

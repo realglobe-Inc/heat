@@ -3,14 +3,13 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 import numpy as np
 import math
-from models.deformable_transformer import DeformableTransformerEncoderLayer, DeformableTransformerEncoder, \
+from ..models.deformable_transformer import DeformableTransformerEncoderLayer, DeformableTransformerEncoder, \
     DeformableTransformerDecoder, DeformableAttnDecoderLayer
-from models.ops.modules import MSDeformAttn
-from models.resnet import convrelu
+from ..models.ops.modules import MSDeformAttn
+from ..models.resnet import convrelu
 from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 from einops.layers.torch import Rearrange
-from utils.misc import NestedTensor
-
+from ..utils.misc import NestedTensor
 
 class HeatCorner(nn.Module):
     """
@@ -65,7 +64,7 @@ class HeatCorner(nn.Module):
         out: Dict[str, NestedTensor] = {}
         for name, x in sorted(xs.items()):
             m = img_mask
-            assert m is not None
+            #assert m is not None
             mask = F.interpolate(m[None].float(), size=x.shape[-2:]).to(torch.bool)[0]
             out[name] = NestedTensor(x, mask)
         return out
@@ -99,7 +98,7 @@ class HeatCorner(nn.Module):
             pos = self.img_pos(src).to(src.dtype)
             all_pos.append(pos)
             masks.append(mask)
-            assert mask is not None
+            #assert mask is not None
 
         if self.num_feature_levels > len(srcs):
             _len_srcs = len(srcs)
@@ -153,7 +152,8 @@ class PositionEmbeddingSine(nn.Module):
             x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
 
         dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=x.device)
-        dim_t = self.temperature ** (2 * (dim_t // 2) / self.num_pos_feats)
+        dim_t = torch.div(dim_t, 2, rounding_mode='trunc')
+        dim_t = self.temperature ** (2 * dim_t / self.num_pos_feats)
 
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t

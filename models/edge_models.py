@@ -2,14 +2,14 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from models.mlp import MLP
-from models.deformable_transformer import DeformableTransformerEncoderLayer, DeformableTransformerEncoder, \
+from ..models.mlp import MLP
+from ..models.deformable_transformer import DeformableTransformerEncoderLayer, DeformableTransformerEncoder, \
     DeformableTransformerDecoder, DeformableTransformerDecoderLayer, DeformableAttnDecoderLayer
-from models.ops.modules import MSDeformAttn
-from models.corner_models import PositionEmbeddingSine
+from ..models.ops.modules import MSDeformAttn
+from ..models.corner_models import PositionEmbeddingSine
 from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 import torch.nn.functional as F
-from utils.misc import NestedTensor
+from ..utils.misc import NestedTensor
 
 
 class HeatEdge(nn.Module):
@@ -55,7 +55,7 @@ class HeatEdge(nn.Module):
         out: Dict[str, NestedTensor] = {}
         for name, x in sorted(xs.items()):
             m = img_mask
-            assert m is not None
+            #assert m is not None
             mask = F.interpolate(m[None].float(), size=x.shape[-2:]).to(torch.bool)[0]
             out[name] = NestedTensor(x, mask)
         return out
@@ -81,7 +81,7 @@ class HeatEdge(nn.Module):
             pos = self.img_pos(src).to(src.dtype)
             all_pos.append(pos)
             masks.append(mask)
-            assert mask is not None
+            #assert mask is not None
 
         if self.num_feature_levels > len(srcs):
             _len_srcs = len(srcs)
@@ -106,10 +106,10 @@ class HeatEdge(nn.Module):
             feats = corner_feats[b_i, edge_coords[b_i, :, :, 1], edge_coords[b_i, :, :, 0], :]
             edge_feats.append(feats)
         edge_feats = torch.stack(edge_feats, dim=0)
-        edge_feats = edge_feats.view(bs, num_edges, -1)
+        edge_feats = edge_feats.view(bs, num_edges, edge_feats.shape[2] * edge_feats.shape[3])
 
-        edge_inputs = self.edge_input_fc(edge_feats.view(bs * num_edges, -1))
-        edge_inputs = edge_inputs.view(bs, num_edges, -1)
+        edge_inputs = self.edge_input_fc(edge_feats.view(bs * num_edges, edge_feats.shape[2]))
+        edge_inputs = edge_inputs.view(bs, num_edges, edge_feats.shape[2])
 
         edge_center = (edge_coords[:, :, 0, :].float() + edge_coords[:, :, 1, :].float()) / 2
         edge_center = edge_center / feat_mask.shape[1]
