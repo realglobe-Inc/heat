@@ -1,0 +1,27 @@
+Cython==0.29.30
+defusedxml==0.7.1
+einops==0.6.0
+future==0.18.2
+imageio==2.16.1
+matplotlib==3.5.2
+numpy==1.23.1
+opencv-python==4.6.0.66
+packaging==21.3
+Pillow==9.3.0
+prometheus-client==0.13.1
+prompt-toolkit==3.0.29
+ptyprocess==0.7.0
+pycparser==2.21
+Pygments==2.11.2
+python-dateutil==2.8.2
+scikit-image==0.19.2
+scikit-learn==1.0.2
+scipy==1.8.0
+six==1.16.0
+cairosvg==2.5.2
+svgwrite==1.4.2
+Shapely==1.8.2
+
+torch==1.12.1+cu113
+torchvision==0.13.1+cu113
+-f https://download.pytorch.org/whl/torch_stable.html

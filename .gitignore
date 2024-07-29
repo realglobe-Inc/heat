@@ -13,3 +13,6 @@ __pycache__
 results
 montefloor_data
 .idea
+
+# 環境変数設定
+/heat
