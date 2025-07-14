@@ -9,14 +9,37 @@
 **************************************************************************
 */
 
+// Fix for CUDA 12.x math function conflicts - must be included first
+#include "cuda_math_fix.h"
+
+// Fix for CUDA 12.x math function conflicts - must be defined before any includes
+#ifndef __CUDA_NO_HALF_OPERATORS__
+#define __CUDA_NO_HALF_OPERATORS__
+#endif
+#ifndef __CUDA_NO_HALF_CONVERSIONS__
+#define __CUDA_NO_HALF_CONVERSIONS__
+#endif
+#ifndef __CUDA_NO_HALF2_OPERATORS__
+#define __CUDA_NO_HALF2_OPERATORS__
+#endif
+#ifndef __CUDA_NO_BFLOAT16_CONVERSIONS__
+#define __CUDA_NO_BFLOAT16_CONVERSIONS__
+#endif
+
+// Workaround for CUDA 12.x sinpi/cospi conflicts
+#ifdef __CUDACC__
+// Prevent math function conflicts in CUDA 12.x
+#define __CORRECT_ISO_CPP11_MATH_H_PROTO
+#include <cuda_runtime.h>
+#include <cuda.h>
+#endif
+
 #include <cstdio>
 #include <algorithm>
 #include <cstring>
 
 #include <ATen/ATen.h>
 #include <ATen/cuda/CUDAContext.h>
-
-#include <THC/THCAtomics.cuh>
 
 #define CUDA_KERNEL_LOOP(i, n)                          \
   for (int i = blockIdx.x * blockDim.x + threadIdx.x;   \
@@ -268,7 +291,7 @@ __global__ void ms_deformable_im2col_gpu_kernel(const int n,
     const int qid_stride = num_heads * channels;
     const int data_value_ptr_init_offset = b_col * spatial_size * qid_stride;
     scalar_t col = 0;
-    
+
     for (int l_col=0; l_col < num_levels; ++l_col)
     {
       const int level_start_id = data_level_start_index[l_col];
@@ -372,7 +395,7 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_blocksize_aware_reduce_v1(co
             top_grad, weight, grad_value_ptr, 
             cache_grad_sampling_loc+(threadIdx.x << 1), cache_grad_attn_weight+threadIdx.x);
         }
-        
+
         __syncthreads();
         if (tid == 0)
         {
@@ -385,8 +408,8 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_blocksize_aware_reduce_v1(co
             _grad_a += cache_grad_attn_weight[tid];
             sid += 2;
           }
-          
-          
+
+
           *grad_sampling_loc = _grad_w;
           *(grad_sampling_loc + 1) = _grad_h;
           *grad_attn_weight = _grad_a;
@@ -477,7 +500,7 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_blocksize_aware_reduce_v2(co
             top_grad, weight, grad_value_ptr, 
             cache_grad_sampling_loc+(threadIdx.x << 1), cache_grad_attn_weight+threadIdx.x);
         }
-        
+
         __syncthreads();
 
         for (unsigned int s=blockSize/2; s>0; s>>=1)
@@ -585,7 +608,7 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_reduce_v1(const int n,
             top_grad, weight, grad_value_ptr, 
             cache_grad_sampling_loc+(threadIdx.x << 1), cache_grad_attn_weight+threadIdx.x);
         }
-        
+
         __syncthreads();
         if (tid == 0)
         {
@@ -598,8 +621,8 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_reduce_v1(const int n,
             _grad_a += cache_grad_attn_weight[tid];
             sid += 2;
           }
-          
-          
+
+
           *grad_sampling_loc = _grad_w;
           *(grad_sampling_loc + 1) = _grad_h;
           *grad_attn_weight = _grad_a;
@@ -690,7 +713,7 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_reduce_v2(const int n,
             top_grad, weight, grad_value_ptr, 
             cache_grad_sampling_loc+(threadIdx.x << 1), cache_grad_attn_weight+threadIdx.x);
         }
-        
+
         __syncthreads();
 
         for (unsigned int s=blockDim.x/2, spre=blockDim.x; s>0; s>>=1, spre>>=1)
@@ -803,7 +826,7 @@ __global__ void ms_deformable_col2im_gpu_kernel_shm_reduce_v2_multi_blocks(const
             top_grad, weight, grad_value_ptr, 
             cache_grad_sampling_loc+(threadIdx.x << 1), cache_grad_attn_weight+threadIdx.x);
         }
-        
+
         __syncthreads();
 
         for (unsigned int s=blockDim.x/2, spre=blockDim.x; s>0; s>>=1, spre>>=1)
@@ -944,7 +967,7 @@ void ms_deformable_im2col_cuda(cudaStream_t stream,
           0, stream>>>(
       num_kernels, data_value, data_spatial_shapes, data_level_start_index, data_sampling_loc, data_attn_weight, 
       batch_size, spatial_size, num_heads, channels, num_levels, num_query, num_point, data_col);
-  
+
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess)
   {
