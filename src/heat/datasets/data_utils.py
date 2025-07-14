@@ -2,7 +2,7 @@ import numpy as np
 from PIL import ImageFilter
 from torch.utils.data.dataloader import default_collate
 from torchvision import transforms
-from utils.nn_utils import positional_encoding_2d
+from ..utils.nn_utils import positional_encoding_2d
 
 
 def RandomBlur(radius=2.0):

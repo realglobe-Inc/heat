@@ -82,7 +82,7 @@ class HeatEdge(nn.Module):
 
     @staticmethod
     def get_ms_feat(xs, img_mask):
-        out: Dict[str, NestedTensor] = {}
+        out: dict[str, NestedTensor] = {}
         for name, x in sorted(xs.items()):
             m = img_mask
             # assert m is not None
