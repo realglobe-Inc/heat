@@ -1,13 +1,13 @@
-from PIL import ImageFilter
-from torchvision import transforms
 import numpy as np
-from utils.nn_utils import positional_encoding_2d
+from PIL import ImageFilter
 from torch.utils.data.dataloader import default_collate
+from torchvision import transforms
+from utils.nn_utils import positional_encoding_2d
 
 
-def RandomBlur(radius=2.):
+def RandomBlur(radius=2.0):
     blur = GaussianBlur(radius=radius)
-    full_transform = transforms.RandomApply([blur], p=.3)
+    full_transform = transforms.RandomApply([blur], p=0.3)
     return full_transform
 
 
@@ -22,18 +22,18 @@ class ImageFilterTransform(object):
 
 class GaussianBlur(ImageFilterTransform):
 
-    def __init__(self, radius=2.):
+    def __init__(self, radius=2.0):
         self.filter = ImageFilter.GaussianBlur(radius=radius)
 
 
 def collate_fn(data):
     batched_data = {}
     for field in data[0].keys():
-        if field in ['annot', 'rec_mat']:
+        if field in ["annot", "rec_mat"]:
             batch_values = [item[field] for item in data]
         else:
             batch_values = default_collate([d[field] for d in data])
-        if field in ['pixel_features', 'pixel_labels', 'gauss_labels']:
+        if field in ["pixel_features", "pixel_labels", "gauss_labels"]:
             batch_values = batch_values.float()
         batched_data[field] = batch_values
 
