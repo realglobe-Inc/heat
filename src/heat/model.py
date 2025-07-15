@@ -66,7 +66,17 @@ class HEAT:
             return self._ckpt_args.image_size
         return None
 
-    def infer(self, image: npt.NDArray[np.uint8], infer_times=3):
+    def infer(self, bgr_image: npt.NDArray[np.uint8], infer_times=3):
+        """
+        与えられたBGR画像に対して、事前学習済みモデルを用いてコーナーとエッジを予測する推論を実行します。
+        このメソッドは入力画像を処理し、ニューラルネットワークモデルに通し、後処理を適用した後に予測されたコーナーとエッジを返します。
+
+        :param bgr_image:  `np.uint8`型NumPy配列で表される、BGR色空間の入力画像。
+        :param infer_times: 実行する推論パスの数。デフォルトは3。
+        :return: 以下の要素を含むタプル:
+            - `pred_corners` (np.ndarray): 予測されたコーナーポイント。
+            - `pos_edges` (np.ndarray): コーナー間の予測されたエッジ。
+        """
         self._backbone.eval()
         self._corner_model.eval()
         self._edge_model.eval()
@@ -77,8 +87,7 @@ class HEAT:
             else 256
         )
 
-        X = image[:, :, ::-1].astype(np.float32)  # RGB -> BGR
-        X = X.transpose(2, 0, 1) / 255.0
+        X = bgr_image.transpose(2, 0, 1) / 255.0
         X = torch.from_numpy(X[np.newaxis, :, :, :]).to(
             dtype=torch.float, device=self._device
         )
