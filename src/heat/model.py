@@ -52,7 +52,7 @@ class HEAT:
         self._corner_model.to(self._device)
         self._edge_model.to(self._device)
 
-    def load_checkpoint(self, checkpoint_path: str) -> None:
+    def load_checkpoint(self, checkpoint_path: str) -> int | None:
         # 学習済みモデルの読み込み
         checkpoint = torch.load(
             checkpoint_path, map_location=self._device, weights_only=False
@@ -62,12 +62,20 @@ class HEAT:
         self._corner_model.load_state_dict(checkpoint["corner_model"])
         self._edge_model.load_state_dict(checkpoint["edge_model"])
 
+        if hasattr(self._ckpt_args, "image_size"):
+            return self._ckpt_args.image_size
+        return None
+
     def infer(self, image: npt.NDArray[np.uint8], infer_times=3):
         self._backbone.eval()
         self._corner_model.eval()
         self._edge_model.eval()
 
-        image_size = 256  # TODO: 外に出す
+        image_size = (
+            self._ckpt_args.image_size
+            if hasattr(self._ckpt_args, "image_size")
+            else 256
+        )
 
         X = image[:, :, ::-1].astype(np.float32)  # RGB -> BGR
         X = X.transpose(2, 0, 1) / 255.0
