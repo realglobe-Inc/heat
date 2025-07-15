@@ -110,6 +110,7 @@ class HeatCorner(nn.Module):
                 0.5, height - 0.5, height, dtype=torch.float32, device=device
             ),
             torch.linspace(0.5, width - 0.5, width, dtype=torch.float32, device=device),
+            indexing="ij",
         )
         ref_y = ref_y.reshape(-1)[None] / height
         ref_x = ref_x.reshape(-1)[None] / width
