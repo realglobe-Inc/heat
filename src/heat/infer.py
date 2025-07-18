@@ -1,6 +1,6 @@
 import numpy as np
-import scipy.ndimage.filters as filters
 import torch
+from scipy.ndimage import maximum_filter, minimum_filter
 
 from .models.corner_to_edge import get_infer_edge_pairs
 
@@ -13,9 +13,9 @@ def corner_nms(preds, confs, image_size):
     for i in range(len(preds)):
         data[preds[i, 1], preds[i, 0]] = confs[i]
 
-    data_max = filters.maximum_filter(data, neighborhood_size)
+    data_max = maximum_filter(data, neighborhood_size)
     maxima = data == data_max
-    data_min = filters.minimum_filter(data, neighborhood_size)
+    data_min = minimum_filter(data, neighborhood_size)
     diff = (data_max - data_min) > threshold
     maxima[diff == 0] = 0
 
