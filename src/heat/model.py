@@ -1,8 +1,9 @@
+from pathlib import Path
 from typing import Any, Final
 
 import numpy as np
-import numpy.typing as npt
 import torch
+from numpy.typing import NDArray
 
 from .datasets.data_utils import get_pixel_features
 from .infer import get_results, postprocess_preds
@@ -18,7 +19,7 @@ class HEAT:
     _edge_model: Final[torch.nn.Module]
     _checkpoint_args: Any
 
-    def __init__(self, use_gpu: bool) -> None:
+    def __init__(self, force_cpu: bool = False):
         self._backbone = ResNetBackbone()
         strides = self._backbone.strides
         num_channels = self._backbone.num_channels
@@ -38,11 +39,11 @@ class HEAT:
         )
 
         # Choose to infer on CPU or GPU
-        if use_gpu:
-            assert torch.cuda.is_available(), "CUDA is not available."
-            self._device = torch.device("cuda:0")
-        else:
-            self._device = torch.device("cpu")
+        self._device = (
+            torch.device("cpu")
+            if force_cpu or not torch.cuda.is_available()
+            else torch.device("cuda")
+        )
 
         self._backbone = torch.nn.DataParallel(self._backbone)
         self._corner_model = torch.nn.DataParallel(self._corner_model)
@@ -52,7 +53,7 @@ class HEAT:
         self._corner_model.to(self._device)
         self._edge_model.to(self._device)
 
-    def load_checkpoint(self, checkpoint_path: str) -> int | None:
+    def load_checkpoint(self, checkpoint_path: Path) -> int | None:
         # 学習済みモデルの読み込み
         checkpoint = torch.load(
             checkpoint_path, map_location=self._device, weights_only=False
@@ -66,7 +67,7 @@ class HEAT:
             return self._ckpt_args.image_size
         return None
 
-    def infer(self, bgr_image: npt.NDArray[np.uint8], infer_times=3):
+    def infer(self, bgr_image: NDArray[np.uint8], infer_times=3):
         """
         与えられたBGR画像に対して、事前学習済みモデルを用いてコーナーとエッジを予測する推論を実行します。
         このメソッドは入力画像を処理し、ニューラルネットワークモデルに通し、後処理を適用した後に予測されたコーナーとエッジを返します。
