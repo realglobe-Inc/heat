@@ -6,9 +6,9 @@ viz/*
 *.zip
 svg_*
 *.html
-models/ops/build
-models/ops/dist
-models/ops/*egg-info
+src/heat/models/ops/build
+src/heat/models/ops/dist
+src/heat/models/ops/*egg-info
 __pycache__
 results
 montefloor_data
@@ -16,3 +16,4 @@ montefloor_data
 
 # 環境変数設定
 /heat
+*.pth

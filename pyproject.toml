@@ -41,6 +41,7 @@ heat-infer = "heat.infer:main"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
+pytest = "^8.4.1"
 scipy-stubs = "^1.16.0.2"
 
 [tool.isort]
