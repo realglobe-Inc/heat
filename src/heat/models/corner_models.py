@@ -3,9 +3,9 @@ from typing import Dict
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from einops.layers.torch import Rearrange
 from torch import nn
+from torch.nn import functional
 from torch.nn.init import normal_
 
 from ..models.deformable_transformer import (
@@ -15,7 +15,7 @@ from ..models.deformable_transformer import (
     DeformableAttnDecoderLayer,
 )
 from ..models.ops.modules import MSDeformAttn
-from ..models.resnet import convrelu
+from ..models.resnet import conv_relu
 from ..utils.misc import NestedTensor
 
 
@@ -41,15 +41,15 @@ class HeatCorner(nn.Module):
         if num_feature_levels > 1:
             num_backbone_outs = len(backbone_strides)
             input_proj_list = []
-            for _ in range(num_backbone_outs):
-                in_channels = backbone_num_channels[_]
+            for i in range(num_backbone_outs):
+                in_channels = backbone_num_channels[i]
                 input_proj_list.append(
                     nn.Sequential(
                         nn.Conv2d(in_channels, hidden_dim, kernel_size=1),
                         nn.GroupNorm(32, hidden_dim),
                     )
                 )
-            for _ in range(num_feature_levels - num_backbone_outs):
+            for i in range(num_feature_levels - num_backbone_outs):
                 input_proj_list.append(
                     nn.Sequential(
                         nn.Conv2d(
@@ -85,7 +85,7 @@ class HeatCorner(nn.Module):
         self.pixel_pe_fc = nn.Linear(input_dim, hidden_dim)
         self.transformer = CornerTransformer(
             d_model=hidden_dim,
-            nhead=8,
+            n_head=8,
             num_encoder_layers=1,
             dim_feedforward=1024,
             dropout=0.1,
@@ -99,7 +99,9 @@ class HeatCorner(nn.Module):
         for name, x in sorted(xs.items()):
             m = img_mask
             # assert m is not None
-            mask = F.interpolate(m[None].float(), size=x.shape[-2:]).to(torch.bool)[0]
+            mask = functional.interpolate(m[None].float(), size=x.shape[-2:]).to(
+                torch.bool
+            )[0]
             out[name] = NestedTensor(x, mask)
         return out
 
@@ -148,7 +150,7 @@ class HeatCorner(nn.Module):
                     src = self.input_proj[l](srcs[-1])
                 m = feat_mask
                 mask = (
-                    F.interpolate(m[None].float(), size=src.shape[-2:])
+                    functional.interpolate(m[None].float(), size=src.shape[-2:])
                     .to(torch.bool)[0]
                     .to(src.device)
                 )
@@ -160,9 +162,9 @@ class HeatCorner(nn.Module):
         sp_inputs = self.to_patch_embedding(pixels_feat)
 
         # compute the reference points
-        H_tgt = W_tgt = int(np.sqrt(sp_inputs.shape[1]))
+        h_tgt = w_tgt = int(np.sqrt(sp_inputs.shape[1]))
         reference_points_s1 = self.get_decoder_reference_points(
-            H_tgt, W_tgt, sp_inputs.device
+            h_tgt, w_tgt, sp_inputs.device
         )
 
         corner_logits = self.transformer(
@@ -220,7 +222,7 @@ class CornerTransformer(nn.Module):
     def __init__(
         self,
         d_model=512,
-        nhead=8,
+        n_head=8,
         num_encoder_layers=6,
         dim_feedforward=1024,
         dropout=0.1,
@@ -238,7 +240,7 @@ class CornerTransformer(nn.Module):
             dropout,
             activation,
             num_feature_levels,
-            nhead,
+            n_head,
             enc_n_points,
         )
         self.encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
@@ -249,7 +251,7 @@ class CornerTransformer(nn.Module):
             dropout,
             activation,
             num_feature_levels,
-            nhead,
+            n_head,
             dec_n_points,
         )
         self.per_edge_decoder = DeformableTransformerDecoder(
@@ -260,9 +262,9 @@ class CornerTransformer(nn.Module):
 
         # upconv layers
         self.upsample = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-        self.conv_up1 = convrelu(256 + 256, 256, 3, 1)
-        self.conv_up0 = convrelu(64 + 256, 128, 3, 1)
-        self.conv_original_size2 = convrelu(64 + 128, d_model, 3, 1)
+        self.conv_up1 = conv_relu(256 + 256, 256, 3, 1)
+        self.conv_up0 = conv_relu(64 + 256, 128, 3, 1)
+        self.conv_original_size2 = conv_relu(64 + 128, d_model, 3, 1)
         self.output_fc_1 = nn.Linear(d_model, 1)
         self.output_fc_2 = nn.Linear(d_model, 1)
 
@@ -277,12 +279,13 @@ class CornerTransformer(nn.Module):
                 m._reset_parameters()
         normal_(self.level_embed)
 
-    def get_valid_ratio(self, mask):
-        _, H, W = mask.shape
-        valid_H = torch.sum(~mask[:, :, 0], 1)
-        valid_W = torch.sum(~mask[:, 0, :], 1)
-        valid_ratio_h = valid_H.float() / H
-        valid_ratio_w = valid_W.float() / W
+    @staticmethod
+    def get_valid_ratio(mask):
+        _, h, w = mask.shape
+        valid_h = torch.sum(~mask[:, :, 0], 1)
+        valid_w = torch.sum(~mask[:, 0, :], 1)
+        valid_ratio_h = valid_h.float() / h
+        valid_ratio_w = valid_w.float() / w
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
@@ -343,14 +346,16 @@ class CornerTransformer(nn.Module):
             mask_flatten,
         )
 
-        feats_s1, preds_s1 = self.generate_corner_preds(hs_pixels_s1, all_image_feats)
+        feats_s1, predicates_s1 = self.generate_corner_predicates(
+            hs_pixels_s1, all_image_feats
+        )
 
-        return preds_s1
+        return predicates_s1
 
-    def generate_corner_preds(self, outputs, conv_outputs):
-        B, L, C = outputs.shape
-        side = int(np.sqrt(L))
-        outputs = outputs.view(B, side, side, C)
+    def generate_corner_predicates(self, outputs, conv_outputs):
+        b, l, c = outputs.shape
+        side = int(np.sqrt(l))
+        outputs = outputs.view(b, side, side, c)
         outputs = outputs.permute(0, 3, 1, 2)
         outputs = torch.cat([outputs, conv_outputs["layer1"]], dim=1)
         x = self.conv_up1(outputs)
@@ -364,6 +369,6 @@ class CornerTransformer(nn.Module):
         x = self.conv_original_size2(x)
 
         logits = x.permute(0, 2, 3, 1)
-        preds = self.output_fc_1(logits)
-        preds = preds.squeeze(-1).sigmoid()
-        return logits, preds
+        predicates = self.output_fc_1(logits)
+        predicates = predicates.squeeze(-1).sigmoid()
+        return logits, predicates

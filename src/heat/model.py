@@ -6,7 +6,7 @@ import torch
 from numpy.typing import NDArray
 
 from .datasets.data_utils import get_pixel_features
-from .infer import get_results, postprocess_preds
+from .infer import get_results, postprocess_predicates
 from .models.corner_models import HeatCorner
 from .models.edge_models import HeatEdge
 from .models.resnet import ResNetBackbone
@@ -58,13 +58,13 @@ class HEAT:
         checkpoint = torch.load(
             checkpoint_path, map_location=self._device, weights_only=False
         )
-        self._ckpt_args = checkpoint["args"]
+        self._checkpoint_args = checkpoint["args"]
         self._backbone.load_state_dict(checkpoint["backbone"])
         self._corner_model.load_state_dict(checkpoint["corner_model"])
         self._edge_model.load_state_dict(checkpoint["edge_model"])
 
-        if hasattr(self._ckpt_args, "image_size"):
-            return self._ckpt_args.image_size
+        if hasattr(self._checkpoint_args, "image_size"):
+            return self._checkpoint_args.image_size
         return None
 
     def infer(self, bgr_image: NDArray[np.uint8], infer_times=3):
@@ -83,13 +83,13 @@ class HEAT:
         self._edge_model.eval()
 
         image_size = (
-            self._ckpt_args.image_size
-            if hasattr(self._ckpt_args, "image_size")
+            self._checkpoint_args.image_size
+            if hasattr(self._checkpoint_args, "image_size")
             else 256
         )
 
-        X = bgr_image.transpose(2, 0, 1) / 255.0
-        X = torch.from_numpy(X[np.newaxis, :, :, :]).to(
+        x = bgr_image.transpose(2, 0, 1) / 255.0
+        x = torch.from_numpy(x[np.newaxis, :, :, :]).to(
             dtype=torch.float, device=self._device
         )
 
@@ -97,13 +97,13 @@ class HEAT:
 
         with torch.inference_mode():
             pred_corners, pred_confs, pos_edges, _, _ = get_results(
-                X,
+                x,
                 self._backbone,
                 self._corner_model,
                 self._edge_model,
                 pixels,
                 pixel_features,
-                self._ckpt_args,
+                self._checkpoint_args,
                 infer_times,
                 corner_thresh=0.01,
                 image_size=image_size,
@@ -112,7 +112,7 @@ class HEAT:
         if pred_confs.shape[0] == 0:
             pred_confs = None
 
-        pred_corners, _, pos_edges = postprocess_preds(
+        pred_corners, _, pos_edges = postprocess_predicates(
             pred_corners, pred_confs, pos_edges
         )
 

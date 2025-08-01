@@ -1,8 +1,8 @@
 import copy
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+from torch.nn import functional
 
 from ..models.ops.modules import MSDeformAttn
 
@@ -338,16 +338,16 @@ class DeformableTransformerDecoder(nn.Module):
         return output, reference_points
 
 
-def _get_clones(module, N):
-    return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
+def _get_clones(module, n):
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(n)])
 
 
 def _get_activation_fn(activation):
     """Return an activation function given a string"""
     if activation == "relu":
-        return F.relu
+        return functional.relu
     if activation == "gelu":
-        return F.gelu
+        return functional.gelu
     if activation == "glu":
-        return F.glu
+        return functional.glu
     raise RuntimeError(f"activation should be relu/gelu, not {activation}.")

@@ -8,19 +8,19 @@ from torch import Tensor
 
 
 @torch.no_grad()
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, top_k=(1,)):
     """Computes the precision@k for the specified values of k"""
     if target.numel() == 0:
         return [torch.zeros([], device=output.device)]
-    maxk = max(topk)
+    max_k = max(top_k)
     batch_size = target.size(0)
 
-    _, pred = output.topk(maxk, 1, True, True)
+    _, pred = output.topk(max_k, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
-    for k in topk:
+    for k in top_k:
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
@@ -145,7 +145,7 @@ class MetricLogger(object):
                     "data: {data}",
                 ]
             )
-        MB = 1024.0 * 1024.0
+        mb = 1024.0 * 1024.0
         for obj in iterable:
             data_time.update(time.time() - end)
             yield obj
@@ -154,22 +154,17 @@ class MetricLogger(object):
                 eta_seconds = iter_time.global_avg * (length_total - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
-                    try:
-                        print(
-                            log_msg.format(
-                                i,
-                                length_total,
-                                eta=eta_string,
-                                meters=str(self),
-                                time=str(iter_time),
-                                data=str(data_time),
-                                memory=torch.cuda.max_memory_allocated() / MB,
-                            )
+                    print(
+                        log_msg.format(
+                            i,
+                            length_total,
+                            eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time),
+                            data=str(data_time),
+                            memory=torch.cuda.max_memory_allocated() / mb,
                         )
-                    except Exception as e:
-                        import pdb
-
-                        pdb.set_trace()
+                    )
                 else:
                     print(
                         log_msg.format(

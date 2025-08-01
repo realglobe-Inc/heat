@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.nn import functional
 from torch.nn.init import normal_
 
 from ..models.corner_models import PositionEmbeddingSine
@@ -35,15 +35,15 @@ class HeatEdge(nn.Module):
         if num_feature_levels > 1:
             num_backbone_outs = len(backbone_strides)
             input_proj_list = []
-            for _ in range(num_backbone_outs):
-                in_channels = backbone_num_channels[_]
+            for i in range(num_backbone_outs):
+                in_channels = backbone_num_channels[i]
                 input_proj_list.append(
                     nn.Sequential(
                         nn.Conv2d(in_channels, hidden_dim, kernel_size=1),
                         nn.GroupNorm(32, hidden_dim),
                     )
                 )
-            for _ in range(num_feature_levels - num_backbone_outs):
+            for i in range(num_feature_levels - num_backbone_outs):
                 input_proj_list.append(
                     nn.Sequential(
                         nn.Conv2d(
@@ -73,7 +73,7 @@ class HeatEdge(nn.Module):
 
         self.transformer = EdgeTransformer(
             d_model=hidden_dim,
-            nhead=8,
+            n_head=8,
             num_encoder_layers=1,
             num_decoder_layers=6,
             dim_feedforward=1024,
@@ -86,7 +86,9 @@ class HeatEdge(nn.Module):
         for name, x in sorted(xs.items()):
             m = img_mask
             # assert m is not None
-            mask = F.interpolate(m[None].float(), size=x.shape[-2:]).to(torch.bool)[0]
+            mask = functional.interpolate(m[None].float(), size=x.shape[-2:]).to(
+                torch.bool
+            )[0]
             out[name] = NestedTensor(x, mask)
         return out
 
@@ -132,7 +134,7 @@ class HeatEdge(nn.Module):
                     src = self.input_proj[l](srcs[-1])
                 m = feat_mask
                 mask = (
-                    F.interpolate(m[None].float(), size=src.shape[-2:])
+                    functional.interpolate(m[None].float(), size=src.shape[-2:])
                     .to(torch.bool)[0]
                     .to(src.device)
                 )
@@ -200,7 +202,7 @@ class EdgeTransformer(nn.Module):
     def __init__(
         self,
         d_model=512,
-        nhead=8,
+        n_head=8,
         num_encoder_layers=6,
         num_decoder_layers=6,
         dim_feedforward=1024,
@@ -219,7 +221,7 @@ class EdgeTransformer(nn.Module):
             dropout,
             activation,
             num_feature_levels,
-            nhead,
+            n_head,
             enc_n_points,
         )
         self.encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
@@ -230,7 +232,7 @@ class EdgeTransformer(nn.Module):
             dropout,
             activation,
             num_feature_levels,
-            nhead,
+            n_head,
             dec_n_points,
         )
         # one-layer decoder, without self-attention layers
@@ -244,7 +246,7 @@ class EdgeTransformer(nn.Module):
             dropout,
             activation,
             num_feature_levels,
-            nhead,
+            n_head,
             dec_n_points,
         )
 
@@ -284,12 +286,13 @@ class EdgeTransformer(nn.Module):
                 m._reset_parameters()
         normal_(self.level_embed)
 
-    def get_valid_ratio(self, mask):
-        _, H, W = mask.shape
-        valid_H = torch.sum(~mask[:, :, 0], 1)
-        valid_W = torch.sum(~mask[:, 0, :], 1)
-        valid_ratio_h = valid_H.float() / H
-        valid_ratio_w = valid_W.float() / W
+    @staticmethod
+    def get_valid_ratio(mask):
+        _, h, w = mask.shape
+        valid_h = torch.sum(~mask[:, :, 0], 1)
+        valid_w = torch.sum(~mask[:, 0, :], 1)
+        valid_ratio_h = valid_h.float() / h
+        valid_ratio_w = valid_w.float() / w
         valid_ratio = torch.stack([valid_ratio_w, valid_ratio_h], -1)
         return valid_ratio
 
@@ -437,19 +440,19 @@ class EdgeTransformer(nn.Module):
         logits, hs, query, rp, labels, key_padding_mask, corner_nums, max_candidates
     ):
         """
-        Filter out the easy-negatives from the edge candidates, and update the edge information correspondingly
+        Filter out the easy-negatives from the edge candidates and update the edge information correspondingly
         """
-        B, L, _ = hs.shape
-        preds = logits.detach().softmax(1)[:, 1, :]  # BxL
-        preds[key_padding_mask == True] = -1  # ignore the masking parts
-        sorted_ids = torch.argsort(preds, dim=-1, descending=True)
+        b, l, _ = hs.shape
+        predicates = logits.detach().softmax(1)[:, 1, :]  # BxL
+        predicates[key_padding_mask == True] = -1  # ignore the masking parts
+        sorted_ids = torch.argsort(predicates, dim=-1, descending=True)
         filtered_hs = list()
         filtered_mask = list()
         filtered_query = list()
         filtered_rp = list()
         filtered_labels = list()
         selected_ids = list()
-        for b_i in range(B):
+        for b_i in range(b):
             num_candidates = corner_nums[b_i] * 3
             ids = sorted_ids[b_i, : max_candidates[b_i]]
             filtered_hs.append(hs[b_i][ids])

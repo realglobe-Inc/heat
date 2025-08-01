@@ -14,7 +14,6 @@ from setuptools import find_packages
 from setuptools import setup
 from torch.utils.cpp_extension import CUDAExtension
 from torch.utils.cpp_extension import CUDA_HOME
-from torch.utils.cpp_extension import CppExtension
 
 requirements = ["torch", "torchvision"]
 
@@ -28,7 +27,6 @@ def get_extensions():
     source_cuda = glob.glob(os.path.join(extensions_dir, "cuda", "*.cu"))
 
     sources = main_file + source_cpu
-    extension = CppExtension
     extra_compile_args = {"cxx": []}
     define_macros = []
 
@@ -52,7 +50,7 @@ def get_extensions():
             "-w",
         ]
     else:
-        raise NotImplementedError("Cuda is not availabel")
+        raise NotImplementedError("Cuda is not available")
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
     include_dirs = [extensions_dir]

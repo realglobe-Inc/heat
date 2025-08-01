@@ -11,11 +11,11 @@ LOCAL_MAX_THRESH = 0.01
 viz_count = 0
 
 # pre-compute all combinations to generate edge candidates faster
-all_combibations = dict()
+all_combinations = dict()
 for length in range(0, 351):
     ids = np.arange(length)
     combs = np.array(list(itertools.combinations(ids, 2)), dtype=np.int_)
-    all_combibations[length] = combs
+    all_combinations[length] = combs
 
 
 def prepare_edge_data(c_outputs, annots, images, max_corner_num):
@@ -69,15 +69,15 @@ def process_each_sample(data, max_corner_num):
     annot = data["annot"]
     output = data["output"]
 
-    preds = output.detach().cpu().numpy()
+    predicates = output.detach().cpu().numpy()
 
-    data_max = filters.maximum_filter(preds, NEIGHBOUR_SIZE)
-    maxima = preds == data_max
-    data_min = filters.minimum_filter(preds, NEIGHBOUR_SIZE)
+    data_max = filters.maximum_filter(predicates, NEIGHBOUR_SIZE)
+    maximum = predicates == data_max
+    data_min = filters.minimum_filter(predicates, NEIGHBOUR_SIZE)
     diff = (data_max - data_min) > 0
-    maxima[diff == 0] = 0
-    local_maximas = np.where((maxima > 0) & (preds > LOCAL_MAX_THRESH))
-    pred_corners = np.stack(local_maximas, axis=-1)[:, [1, 0]]  # to (x, y format)
+    maximum[diff == 0] = 0
+    local_maximums = np.where((maximum > 0) & (predicates > LOCAL_MAX_THRESH))
+    pred_corners = np.stack(local_maximums, axis=-1)[:, [1, 0]]  # to (x, y format)
 
     # produce edge labels labels from pred corners here
 
@@ -158,14 +158,14 @@ def _get_edges(corners, edge_pairs):
     corners = np.clip(corners, 0, 255)
     id_mapping = {old: new for new, old in enumerate(ind)}
 
-    all_ids = all_combibations[len(corners)]
+    all_ids = all_combinations[len(corners)]
     edges = corners[all_ids]
     labels = np.zeros(edges.shape[0])
 
-    N = len(corners)
+    n = len(corners)
     edge_pairs = [(id_mapping[p[0]], id_mapping[p[1]]) for p in edge_pairs]
     edge_pairs = [p for p in edge_pairs if p[0] < p[1]]
-    pos_ids = [int((2 * N - 1 - p[0]) * p[0] / 2 + p[1] - p[0] - 1) for p in edge_pairs]
+    pos_ids = [int((2 * n - 1 - p[0]) * p[0] / 2 + p[1] - p[0] - 1) for p in edge_pairs]
     labels[pos_ids] = 1
 
     edge_ids = np.array(all_ids)
@@ -204,11 +204,11 @@ def collate_edge_info(data):
     return batched_data
 
 
-def pad_sequence(seq, length, pad_value=0):
-    if len(seq) == length:
+def pad_sequence(seq, complete_length, pad_value=0):
+    if len(seq) == complete_length:
         return seq
     else:
-        pad_len = length - len(seq)
+        pad_len = complete_length - len(seq)
         if len(seq.shape) == 1:
             if pad_value == 0:
                 paddings = np.zeros(
@@ -252,7 +252,7 @@ def get_infer_edge_pairs(corners, confs):
     corners = corners[ind]  # sorted by y, then x
     confs = confs[ind]
 
-    edge_ids = all_combibations[len(corners)]
+    edge_ids = all_combinations[len(corners)]
     edge_coords = corners[edge_ids]
 
     edge_coords = (
@@ -272,8 +272,8 @@ def _visualize_edge_training_data(corners, edges, edge_labels, image, save_path)
         if label == 1:
             cv2.line(
                 image,
-                tuple(edge[0].astype(np.int)),
-                tuple(edge[1].astype(np.int)),
+                tuple(edge[0].astype(np.int64)),
+                tuple(edge[1].astype(np.int64)),
                 (255, 255, 0),
                 2,
             )

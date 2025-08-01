@@ -2,10 +2,11 @@ import numpy as np
 from PIL import ImageFilter
 from torch.utils.data.dataloader import default_collate
 from torchvision import transforms
+
 from ..utils.nn_utils import positional_encoding_2d
 
 
-def RandomBlur(radius=2.0):
+def random_blur(radius=2.0):
     blur = GaussianBlur(radius=radius)
     full_transform = transforms.RandomApply([blur], p=0.3)
     return full_transform
@@ -48,8 +49,8 @@ def get_pixel_features(image_size, d_pe=128):
     xv, yv = np.meshgrid(pixels_x, pixels_y)
     all_pixels = list()
     for i in range(xv.shape[0]):
-        pixs = np.stack([xv[i], yv[i]], axis=-1)
-        all_pixels.append(pixs)
+        ps = np.stack([xv[i], yv[i]], axis=-1)
+        all_pixels.append(ps)
     pixels = np.stack(all_pixels, axis=0)
 
     pixel_features = all_pe[:, pixels[:, :, 1], pixels[:, :, 0]]

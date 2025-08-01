@@ -14,8 +14,8 @@ import math
 import warnings
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+from torch.nn import functional
 from torch.nn.init import xavier_uniform_, constant_
 
 from ..functions import MSDeformAttnFunction
@@ -33,10 +33,10 @@ class MSDeformAttn(nn.Module):
     def __init__(self, d_model=256, n_levels=4, n_heads=8, n_points=4):
         """
         Multi-Scale Deformable Attention Module
-        :param d_model      hidden dimension
-        :param n_levels     number of feature levels
-        :param n_heads      number of attention heads
-        :param n_points     number of sampling points per attention head per feature level
+        :param d_model: hidden dimension
+        :param n_levels: number of feature levels
+        :param n_heads: number of attention heads
+        :param n_points: number of sampling points per attention head per feature level
         """
         super().__init__()
         if d_model % n_heads != 0:
@@ -99,34 +99,34 @@ class MSDeformAttn(nn.Module):
         input_padding_mask=None,
     ):
         r"""
-        :param query                       (N, Length_{query}, C)
-        :param reference_points            (N, Length_{query}, n_levels, 2), range in [0, 1], top-left (0,0), bottom-right (1, 1), including padding area
-                                        or (N, Length_{query}, n_levels, 4), add additional (w, h) to form reference boxes
-        :param input_flatten               (N, \sum_{l=0}^{L-1} H_l \cdot W_l, C)
+        :param query                       (n, Length_{query}, C)
+        :param reference_points            (n, Length_{query}, n_levels, 2), range in [0, 1], top-left (0,0), bottom-right (1, 1), including padding area
+                                        or (n, Length_{query}, n_levels, 4), add additional (w, h) to form reference boxes
+        :param input_flatten               (n, \sum_{l=0}^{L-1} H_l \cdot W_l, C)
         :param input_spatial_shapes        (n_levels, 2), [(H_0, W_0), (H_1, W_1), ..., (H_{L-1}, W_{L-1})]
         :param input_level_start_index     (n_levels, ), [0, H_0*W_0, H_0*W_0+H_1*W_1, H_0*W_0+H_1*W_1+H_2*W_2, ..., H_0*W_0+H_1*W_1+...+H_{L-1}*W_{L-1}]
-        :param input_padding_mask          (N, \sum_{l=0}^{L-1} H_l \cdot W_l), True for padding elements, False for non-padding elements
+        :param input_padding_mask          (n, \sum_{l=0}^{L-1} H_l \cdot W_l), True for padding elements, False for non-padding elements
 
-        :return output                     (N, Length_{query}, C)
+        :return output: (n, Length_{query}, C)
         """
-        N, Len_q, _ = query.shape
-        N, Len_in, _ = input_flatten.shape
-        assert (input_spatial_shapes[:, 0] * input_spatial_shapes[:, 1]).sum() == Len_in
+        n, len_q, _ = query.shape
+        n, len_in, _ = input_flatten.shape
+        assert (input_spatial_shapes[:, 0] * input_spatial_shapes[:, 1]).sum() == len_in
 
         value = self.value_proj(input_flatten)
         if input_padding_mask is not None:
             value = value.masked_fill(input_padding_mask[..., None], float(0))
-        value = value.view(N, Len_in, self.n_heads, self.d_model // self.n_heads)
+        value = value.view(n, len_in, self.n_heads, self.d_model // self.n_heads)
         sampling_offsets = self.sampling_offsets(query).view(
-            N, Len_q, self.n_heads, self.n_levels, self.n_points, 2
+            n, len_q, self.n_heads, self.n_levels, self.n_points, 2
         )
         attention_weights = self.attention_weights(query).view(
-            N, Len_q, self.n_heads, self.n_levels * self.n_points
+            n, len_q, self.n_heads, self.n_levels * self.n_points
         )
-        attention_weights = F.softmax(attention_weights, -1).view(
-            N, Len_q, self.n_heads, self.n_levels, self.n_points
+        attention_weights = functional.softmax(attention_weights, -1).view(
+            n, len_q, self.n_heads, self.n_levels, self.n_points
         )
-        # N, Len_q, n_heads, n_levels, n_points, 2
+        # n, len_q, n_heads, n_levels, n_points, 2
         if reference_points.shape[-1] == 2:
             offset_normalizer = torch.stack(
                 [input_spatial_shapes[..., 1], input_spatial_shapes[..., 0]], -1

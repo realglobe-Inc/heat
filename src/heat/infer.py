@@ -5,13 +5,13 @@ from scipy.ndimage import maximum_filter, minimum_filter
 from .models.corner_to_edge import get_infer_edge_pairs
 
 
-def corner_nms(preds, confs, image_size):
+def corner_nms(predicates, confs, image_size):
     data = np.zeros([image_size, image_size])
     neighborhood_size = 5
     threshold = 0
 
-    for i in range(len(preds)):
-        data[preds[i, 1], preds[i, 0]] = confs[i]
+    for i in range(len(predicates)):
+        data[predicates[i, 1], predicates[i, 0]] = confs[i]
 
     data_max = maximum_filter(data, neighborhood_size)
     maxima = data == data_max
@@ -20,14 +20,14 @@ def corner_nms(preds, confs, image_size):
     maxima[diff == 0] = 0
 
     results = np.where(maxima > 0)
-    filtered_preds = np.stack([results[1], results[0]], axis=-1)
+    filtered_predicates = np.stack([results[1], results[0]], axis=-1)
 
     new_confs = list()
-    for i, pred in enumerate(filtered_preds):
+    for i, pred in enumerate(filtered_predicates):
         new_confs.append(data[pred[1], pred[0]])
     new_confs = np.array(new_confs)
 
-    return filtered_preds, new_confs
+    return filtered_predicates, new_confs
 
 
 def get_results(
@@ -44,11 +44,11 @@ def get_results(
 ):
     image_feats, feat_mask, all_image_feats = backbone(image)
     pixel_features = pixel_features.unsqueeze(0).repeat(image.shape[0], 1, 1, 1)
-    preds_s1 = corner_model(
+    predicates_s1 = corner_model(
         image_feats, feat_mask, pixel_features, pixels, all_image_feats
     )
 
-    c_outputs = preds_s1
+    c_outputs = predicates_s1
     # get predicted corners
     c_outputs_np = c_outputs[0].detach().cpu().numpy()
     pos_indices = np.where(c_outputs_np >= corner_thresh)
@@ -103,25 +103,21 @@ def get_results(
         num_selected = selected_ids.shape[1]
         num_filtered = num_total - num_selected
 
-        s1_preds = s1_logits.squeeze(0).softmax(0)
-        s2_preds_rel = s2_logits_rel.squeeze(0).softmax(0)
-        s2_preds_hb = s2_logits_hb.squeeze(0).softmax(0)
-        s1_preds_np = s1_preds[1, :].detach().cpu().numpy()
-        s2_preds_rel_np = s2_preds_rel[1, :].detach().cpu().numpy()
-        s2_preds_hb_np = s2_preds_hb[1, :].detach().cpu().numpy()
+        s2_predicates_hb = s2_logits_hb.squeeze(0).softmax(0)
+        s2_predicates_hb_np = s2_predicates_hb[1, :].detach().cpu().numpy()
 
         selected_ids = selected_ids.squeeze(0).detach().cpu().numpy()
         if tt != infer_times - 1:
-            s2_preds_np = s2_preds_hb_np
+            s2_predicates_np = s2_predicates_hb_np
 
-            pos_edge_ids = np.where(s2_preds_np >= 0.3)
-            neg_edge_ids = np.where(s2_preds_np <= 0.01)
+            pos_edge_ids = np.where(s2_predicates_np >= 0.3)
+            neg_edge_ids = np.where(s2_predicates_np <= 0.01)
             for pos_id in pos_edge_ids[0]:
                 actual_id = selected_ids[pos_id]
                 if gt_values[0, actual_id] != 2:
                     continue
                 all_pos_ids.add(actual_id)
-                all_edge_confs[actual_id] = s2_preds_np[pos_id]
+                all_edge_confs[actual_id] = s2_predicates_np[pos_id]
                 gt_values[0, actual_id] = 1
             for neg_id in neg_edge_ids[0]:
                 actual_id = selected_ids[neg_id]
@@ -132,15 +128,15 @@ def get_results(
             if num_to_pred <= num_filtered:
                 break
         else:
-            s2_preds_np = s2_preds_hb_np
+            s2_predicates_np = s2_predicates_hb_np
 
-            pos_edge_ids = np.where(s2_preds_np >= 0.2)
+            pos_edge_ids = np.where(s2_predicates_np >= 0.2)
             for pos_id in pos_edge_ids[0]:
                 actual_id = selected_ids[pos_id]
                 if s2_mask[0][pos_id] is True or gt_values[0, actual_id] != 2:
                     continue
                 all_pos_ids.add(actual_id)
-                all_edge_confs[actual_id] = s2_preds_np[pos_id]
+                all_edge_confs[actual_id] = s2_predicates_np[pos_id]
 
     # print('Inference time {}'.format(tt+1))
     pos_edge_ids = list(all_pos_ids)
@@ -154,7 +150,7 @@ def get_results(
     return pred_corners, pred_confs, pos_edges, edge_confs, c_outputs_np
 
 
-def postprocess_preds(corners, confs, edges):
+def postprocess_predicates(corners, confs, edges):
     corner_degrees = dict()
     for edge_i, edge_pair in enumerate(edges):
         corner_degrees[edge_pair[0]] = corner_degrees.setdefault(edge_pair[0], 0) + 1

@@ -1,5 +1,5 @@
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.nn import functional
 
 
 class MLP(nn.Module):
@@ -15,9 +15,9 @@ class MLP(nn.Module):
         )
 
     def forward(self, x):
-        B, N, D = x.size()
-        x = x.reshape(B * N, D)
+        b, n, d = x.size()
+        x = x.reshape(b * n, d)
         for i, layer in enumerate(self.layers):
-            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
-        x = x.view(B, N, self.output_dim)
+            x = functional.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        x = x.view(b, n, self.output_dim)
         return x
