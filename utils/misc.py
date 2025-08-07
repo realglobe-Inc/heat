@@ -1,25 +1,26 @@
-import torch
+import datetime
 import time
 from collections import defaultdict, deque
-import datetime
-from typing import Optional, List
+from typing import Optional
+
+import torch
 from torch import Tensor
 
 
 @torch.no_grad()
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, top_k=(1,)):
     """Computes the precision@k for the specified values of k"""
     if target.numel() == 0:
         return [torch.zeros([], device=output.device)]
-    maxk = max(topk)
+    max_k = max(top_k)
     batch_size = target.size(0)
 
-    _, pred = output.topk(maxk, 1, True, True)
+    _, pred = output.topk(max_k, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
-    for k in topk:
+    for k in top_k:
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
@@ -63,7 +64,7 @@ class SmoothedValue(object):
 
     @property
     def value(self):
-        #return self.deque[-1]
+        # return self.deque[-1]
         return self.avg
 
     def __str__(self):
@@ -72,7 +73,8 @@ class SmoothedValue(object):
             avg=self.avg,
             global_avg=self.global_avg,
             max=self.max,
-            value=self.value)
+            value=self.value,
+        )
 
 
 class MetricLogger(object):
@@ -92,15 +94,14 @@ class MetricLogger(object):
             return self.meters[attr]
         if attr in self.__dict__:
             return self.__dict__[attr]
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            type(self).__name__, attr))
+        raise AttributeError(
+            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
+        )
 
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append(
-                "{}: {}".format(name, str(meter))
-            )
+            loss_str.append("{}: {}".format(name, str(meter)))
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -115,59 +116,80 @@ class MetricLogger(object):
         if length_total is None:
             length_total = len(iterable)
         if not header:
-            header = ''
+            header = ""
         start_time = time.time()
         end = time.time()
-        iter_time = SmoothedValue(fmt='{avg:.4f}')
-        data_time = SmoothedValue(fmt='{avg:.4f}')
-        space_fmt = ':' + str(len(str(length_total))) + 'd'
+        iter_time = SmoothedValue(fmt="{avg:.4f}")
+        data_time = SmoothedValue(fmt="{avg:.4f}")
+        space_fmt = ":" + str(len(str(length_total))) + "d"
         if torch.cuda.is_available():
-            log_msg = self.delimiter.join([
-                header,
-                '[{0' + space_fmt + '}/{1}]',
-                'eta: {eta}',
-                '{meters}',
-                'time: {time}',
-                'data: {data}',
-                'max mem: {memory:.0f}'
-            ])
+            log_msg = self.delimiter.join(
+                [
+                    header,
+                    "[{0" + space_fmt + "}/{1}]",
+                    "eta: {eta}",
+                    "{meters}",
+                    "time: {time}",
+                    "data: {data}",
+                    "max mem: {memory:.0f}",
+                ]
+            )
         else:
-            log_msg = self.delimiter.join([
-                header,
-                '[{0' + space_fmt + '}/{1}]',
-                'eta: {eta}',
-                '{meters}',
-                'time: {time}',
-                'data: {data}'
-            ])
-        MB = 1024.0 * 1024.0
+            log_msg = self.delimiter.join(
+                [
+                    header,
+                    "[{0" + space_fmt + "}/{1}]",
+                    "eta: {eta}",
+                    "{meters}",
+                    "time: {time}",
+                    "data: {data}",
+                ]
+            )
+        mb = 1024.0 * 1024.0
         for obj in iterable:
             data_time.update(time.time() - end)
             yield obj
             iter_time.update(time.time() - end)
             if i % print_freq == 0 or i == length_total - 1:
                 eta_seconds = iter_time.global_avg * (length_total - i)
-                eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+                eta_str_ = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
                     try:
-                        print(log_msg.format(
-                            i, length_total, eta=eta_string,
-                            meters=str(self),
-                            time=str(iter_time), data=str(data_time),
-                            memory=torch.cuda.max_memory_allocated() / MB))
+                        print(
+                            log_msg.format(
+                                i,
+                                length_total,
+                                eta=eta_str_,
+                                meters=str(self),
+                                time=str(iter_time),
+                                data=str(data_time),
+                                memory=torch.cuda.max_memory_allocated() / mb,
+                            )
+                        )
                     except Exception as e:
-                        import pdb; pdb.set_trace()
+                        import pdb
+
+                        pdb.set_trace()
                 else:
-                    print(log_msg.format(
-                        i, length_total, eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time)))
+                    print(
+                        log_msg.format(
+                            i,
+                            length_total,
+                            eta=eta_str_,
+                            meters=str(self),
+                            time=str(iter_time),
+                            data=str(data_time),
+                        )
+                    )
             i += 1
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print('{} Total time: {} ({:.4f} s / it)'.format(
-            header, total_time_str, total_time / length_total))
+        print(
+            "{} Total time: {} ({:.4f} s / it)".format(
+                header, total_time_str, total_time / length_total
+            )
+        )
 
 
 class NestedTensor(object):
