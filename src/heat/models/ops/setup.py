@@ -12,7 +12,7 @@ import os
 import torch
 from setuptools import find_packages
 from setuptools import setup
-from torch.utils.cpp_extension import CUDAExtension
+from torch.utils.cpp_extension import CUDAExtension, CppExtension
 from torch.utils.cpp_extension import CUDA_HOME
 
 requirements = ["torch", "torchvision"]
@@ -27,7 +27,7 @@ def get_extensions():
     source_cuda = glob.glob(os.path.join(extensions_dir, "cuda", "*.cu"))
 
     sources = main_file + source_cpu
-    extra_compile_args = {"cxx": []}
+    extra_compile_args = {"cxx": ["-Wno-error", "-w"]}
     define_macros = []
 
     if torch.cuda.is_available() and CUDA_HOME is not None:
@@ -44,13 +44,12 @@ def get_extensions():
             "-Wno-error",
             "-Xcompiler",
             "-w",
-        ]
-        extra_compile_args["cxx"] = [
-            "-Wno-error",
-            "-w",
+            "-Xcompiler",
+            "-fpermissive",
+            "-diag-suppress=20011",  # Support for CUDA 13.x sinpi/cospi warnings
         ]
     else:
-        raise NotImplementedError("Cuda is not available")
+        extension = CppExtension
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
     include_dirs = [extensions_dir]
@@ -84,5 +83,9 @@ setup(
         )
     ),
     ext_modules=get_extensions(),
-    cmdclass={"build_ext": torch.utils.cpp_extension.BuildExtension},
+    cmdclass={
+        "build_ext": torch.utils.cpp_extension.BuildExtension.with_options(
+            use_ninja=False
+        )
+    },
 )

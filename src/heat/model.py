@@ -53,6 +53,13 @@ class HEAT:
         self._corner_model.to(self._device)
         self._edge_model.to(self._device)
 
+    @property
+    def device(self) -> torch.device:
+        """
+        モデルが現在使用しているデバイスを取得します。
+        """
+        return self._device
+
     def load_checkpoint(self, checkpoint_path: Path) -> int | None:
         # 学習済みモデルの読み込み
         checkpoint = torch.load(

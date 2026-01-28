@@ -10,8 +10,35 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import MultiScaleDeformableAttention as msda
 import torch
+
+try:
+    import MultiScaleDeformableAttention as msda
+
+    _import_error = None
+except ImportError as e:
+    msda = None
+    _import_error = str(e)
+
+
+def is_extension_available() -> bool:
+    """
+    Check if the C++ extension (MultiScaleDeformableAttention) is available.
+
+    :returns: True if the extension is loaded, False otherwise.
+    """
+    return msda is not None
+
+
+def get_extension_error() -> str | None:
+    """
+    Get the error message if the C++ extension failed to load.
+
+    :returns: Error message or None if it was loaded successfully.
+    """
+    return _import_error
+
+
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn import functional
@@ -29,14 +56,19 @@ class MSDeformAttnFunction(Function):
         im2col_step,
     ):
         ctx.im2col_step = im2col_step
-        output = msda.ms_deform_attn_forward(
-            value,
-            value_spatial_shapes,
-            value_level_start_index,
-            sampling_locations,
-            attention_weights,
-            ctx.im2col_step,
-        )
+        if msda is not None and value.is_cuda:
+            output = msda.ms_deform_attn_forward(
+                value,
+                value_spatial_shapes,
+                value_level_start_index,
+                sampling_locations,
+                attention_weights,
+                ctx.im2col_step,
+            )
+        else:
+            output = ms_deform_attn_core_pytorch(
+                value, value_spatial_shapes, sampling_locations, attention_weights
+            )
         ctx.save_for_backward(
             value,
             value_spatial_shapes,
@@ -56,15 +88,31 @@ class MSDeformAttnFunction(Function):
             sampling_locations,
             attention_weights,
         ) = ctx.saved_tensors
-        grad_value, grad_sampling_loc, grad_attn_weight = msda.ms_deform_attn_backward(
-            value,
-            value_spatial_shapes,
-            value_level_start_index,
-            sampling_locations,
-            attention_weights,
-            grad_output,
-            ctx.im2col_step,
-        )
+
+        if msda is not None and value.is_cuda:
+            grad_value, grad_sampling_loc, grad_attn_weight = (
+                msda.ms_deform_attn_backward(
+                    value,
+                    value_spatial_shapes,
+                    value_level_start_index,
+                    sampling_locations,
+                    attention_weights,
+                    grad_output,
+                    ctx.im2col_step,
+                )
+            )
+        else:
+            # Fallback to autograd for CPU/missing extension
+            # Since forward was done with pure pytorch, we can actually
+            # just not use MSDeformAttnFunction for that case.
+            # But here we are already inside a Function.
+            # To avoid complexity, we just throw an error if we reach here without MSDA
+            # but wait, if it was done with pytorch implementation in forward,
+            # then autograd would have handled it IF we didn't wrap it in a Function.
+            raise NotImplementedError(
+                "Backward for MSDeformAttn on CPU or without extension is not implemented via MSDeformAttnFunction. "
+                "Use the pytorch implementation directly for autograd support."
+            )
 
         return grad_value, None, None, grad_sampling_loc, grad_attn_weight, None
 

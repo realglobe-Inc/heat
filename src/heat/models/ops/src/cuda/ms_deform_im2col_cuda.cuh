@@ -12,28 +12,6 @@
 // Fix for CUDA 12.x math function conflicts - must be included first
 #include "cuda_math_fix.h"
 
-// Fix for CUDA 12.x math function conflicts - must be defined before any includes
-#ifndef __CUDA_NO_HALF_OPERATORS__
-#define __CUDA_NO_HALF_OPERATORS__
-#endif
-#ifndef __CUDA_NO_HALF_CONVERSIONS__
-#define __CUDA_NO_HALF_CONVERSIONS__
-#endif
-#ifndef __CUDA_NO_HALF2_OPERATORS__
-#define __CUDA_NO_HALF2_OPERATORS__
-#endif
-#ifndef __CUDA_NO_BFLOAT16_CONVERSIONS__
-#define __CUDA_NO_BFLOAT16_CONVERSIONS__
-#endif
-
-// Workaround for CUDA 12.x sinpi/cospi conflicts
-#ifdef __CUDACC__
-// Prevent math function conflicts in CUDA 12.x
-#define __CORRECT_ISO_CPP11_MATH_H_PROTO
-#include <cuda_runtime.h>
-#include <cuda.h>
-#endif
-
 #include <cstdio>
 #include <algorithm>
 #include <cstring>
@@ -58,8 +36,8 @@ __device__ scalar_t ms_deform_attn_im2col_bilinear(const scalar_t* &bottom_data,
                                                    const int &height, const int &width, const int &nheads, const int &channels,
                                                    const scalar_t &h, const scalar_t &w, const int &m, const int &c)
 {
-  const int h_low = floor(h);
-  const int w_low = floor(w);
+  const int h_low = ::floor(h);
+  const int w_low = ::floor(w);
   const int h_high = h_low + 1;
   const int w_high = w_low + 1;
 
@@ -117,8 +95,8 @@ __device__ void ms_deform_attn_col2im_bilinear(const scalar_t* &bottom_data,
                                                    scalar_t* grad_sampling_loc,
                                                    scalar_t* grad_attn_weight)
 {
-  const int h_low = floor(h);
-  const int w_low = floor(w);
+  const int h_low = ::floor(h);
+  const int w_low = ::floor(w);
   const int h_high = h_low + 1;
   const int w_high = w_low + 1;
 
@@ -192,8 +170,8 @@ __device__ void ms_deform_attn_col2im_bilinear_gm(const scalar_t* &bottom_data,
                                                    scalar_t* grad_sampling_loc,
                                                    scalar_t* grad_attn_weight)
 {
-  const int h_low = floor(h);
-  const int w_low = floor(w);
+  const int h_low = ::floor(h);
+  const int w_low = ::floor(w);
   const int h_high = h_low + 1;
   const int w_high = w_low + 1;
 

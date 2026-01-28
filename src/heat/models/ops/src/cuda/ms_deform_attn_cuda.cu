@@ -8,36 +8,11 @@
 **************************************************************************************************
 */
 
-// Fix for CUDA 12.x math function conflicts - must be included first
-#include "cuda/cuda_math_fix.h"
-
-// Fix for CUDA 12.x math function conflicts - must be defined before any includes
-#ifndef __CUDA_NO_HALF_OPERATORS__
-#define __CUDA_NO_HALF_OPERATORS__
-#endif
-#ifndef __CUDA_NO_HALF_CONVERSIONS__
-#define __CUDA_NO_HALF_CONVERSIONS__
-#endif
-#ifndef __CUDA_NO_HALF2_OPERATORS__
-#define __CUDA_NO_HALF2_OPERATORS__
-#endif
-#ifndef __CUDA_NO_BFLOAT16_CONVERSIONS__
-#define __CUDA_NO_BFLOAT16_CONVERSIONS__
-#endif
-
-// Workaround for CUDA 12.x sinpi/cospi conflicts
-#ifdef __CUDACC__
-// Prevent math function conflicts in CUDA 12.x
-#define __CORRECT_ISO_CPP11_MATH_H_PROTO
-#include <cuda_runtime.h>
-#include <cuda.h>
-#endif
-
-#include <vector>
+#include "cuda_math_fix.h"
 
 #include <ATen/ATen.h>
 #include <ATen/cuda/CUDAContext.h>
-
+#include <vector>
 #include "cuda/ms_deform_im2col_cuda.cuh"
 
 
