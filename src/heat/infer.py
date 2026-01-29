@@ -43,7 +43,7 @@ def get_results(
     image_size=256,
 ):
     image_feats, feat_mask, all_image_feats = backbone(image)
-    pixel_features = pixel_features.unsqueeze(0).repeat(image.shape[0], 1, 1, 1)
+    pixel_features = pixel_features.unsqueeze(0).expand(image.shape[0], -1, -1, -1)
     predicates_s1 = corner_model(
         image_feats, feat_mask, pixel_features, pixels, all_image_feats
     )
@@ -70,6 +70,8 @@ def get_results(
     pred_corners, pred_confs, edge_coords, edge_mask, edge_ids = get_infer_edge_pairs(
         pred_corners, pred_confs
     )
+    edge_coords = edge_coords.to(image.device)
+    edge_mask = edge_mask.to(image.device)
 
     corner_nums = torch.tensor([len(pred_corners)]).to(image.device)
     max_candidates = torch.stack(
@@ -81,7 +83,7 @@ def get_results(
 
     for tt in range(infer_times):
         if tt == 0:
-            gt_values = torch.zeros_like(edge_mask).long()
+            gt_values = torch.zeros_like(edge_mask).to(image.device).long()
             gt_values[:, :] = 2
 
         # run the edge model

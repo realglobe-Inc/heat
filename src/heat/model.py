@@ -18,6 +18,9 @@ class HEAT:
     _corner_model: Final[torch.nn.Module]
     _edge_model: Final[torch.nn.Module]
     _checkpoint_args: Any
+    _pixels: NDArray[Any] | None = None
+    _pixel_features: torch.Tensor | None = None
+    _cached_image_size: int | None = None
 
     def __init__(self, force_cpu: bool = False):
         self._backbone = ResNetBackbone()
@@ -100,7 +103,16 @@ class HEAT:
             dtype=torch.float, device=self._device
         )
 
-        pixels, pixel_features = get_pixel_features(image_size=image_size)
+        if (
+            self._cached_image_size != image_size
+            or self._pixels is None
+            or self._pixel_features is None
+        ):
+            self._pixels, self._pixel_features = get_pixel_features(
+                image_size=image_size
+            )
+            self._pixel_features = self._pixel_features.to(self._device)
+            self._cached_image_size = image_size
 
         with torch.inference_mode():
             pred_corners, pred_confs, pos_edges, _, _ = get_results(
@@ -108,8 +120,8 @@ class HEAT:
                 self._backbone,
                 self._corner_model,
                 self._edge_model,
-                pixels,
-                pixel_features,
+                self._pixels,
+                self._pixel_features,
                 self._checkpoint_args,
                 infer_times,
                 corner_thresh=0.01,
