@@ -38,7 +38,7 @@ build = "src/heat/models/ops/build.py"
 heat-infer = "heat.infer:main"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.9.4"
+ruff = "^0.14.14"
 pytest = "^9.0.2"
 scipy-stubs = "^1.17.0.2"
 ninja = "^1.13.0"
@@ -59,8 +59,11 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "B", "C4", "SIM", "UP", "N"]
+select = ["E", "F", "I", "W", "B", "C4", "SIM", "UP", "N", "TID"]
 ignore = []
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
 known-first-party = ["heat"]

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from scipy.ndimage import maximum_filter, minimum_filter
 
-from .models.corner_to_edge import get_infer_edge_pairs
+from heat.models.corner_to_edge import get_infer_edge_pairs
 
 
 def corner_nms(predicates, confs, image_size):
@@ -22,7 +22,7 @@ def corner_nms(predicates, confs, image_size):
     results = np.where(maxima > 0)
     filtered_predicates = np.stack([results[1], results[0]], axis=-1)
 
-    new_confs = list()
+    new_confs = []
     for i, pred in enumerate(filtered_predicates):
         new_confs.append(data[pred[1], pred[0]])
     new_confs = np.array(new_confs)
@@ -79,7 +79,7 @@ def get_results(
     )
 
     all_pos_ids = set()
-    all_edge_confs = dict()
+    all_edge_confs = {}
 
     for tt in range(infer_times):
         if tt == 0:
@@ -153,7 +153,7 @@ def get_results(
 
 
 def postprocess_predicates(corners, confs, edges):
-    corner_degrees = dict()
+    corner_degrees = {}
     for edge_i, edge_pair in enumerate(edges):
         corner_degrees[edge_pair[0]] = corner_degrees.setdefault(edge_pair[0], 0) + 1
         corner_degrees[edge_pair[1]] = corner_degrees.setdefault(edge_pair[1], 0) + 1
@@ -164,7 +164,7 @@ def postprocess_predicates(corners, confs, edges):
         good_corners = corners[good_ids]
         good_confs = confs[good_ids]
         id_mapping = {value: idx for idx, value in enumerate(good_ids)}
-        new_edges = list()
+        new_edges = []
         for edge_pair in edges:
             new_pair = (id_mapping[edge_pair[0]], id_mapping[edge_pair[1]])
             new_edges.append(new_pair)

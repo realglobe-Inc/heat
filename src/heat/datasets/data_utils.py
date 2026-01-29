@@ -3,7 +3,7 @@ from PIL import ImageFilter
 from torch.utils.data.dataloader import default_collate
 from torchvision import transforms
 
-from ..utils.nn_utils import positional_encoding_2d
+from heat.utils.nn_utils import positional_encoding_2d
 
 
 def random_blur(radius=2.0):
@@ -45,7 +45,7 @@ def get_pixel_features(image_size, d_pe=128):
     pixels_y = np.arange(0, image_size)
 
     xv, yv = np.meshgrid(pixels_x, pixels_y)
-    all_pixels = list()
+    all_pixels = []
     for i in range(xv.shape[0]):
         ps = np.stack([xv[i], yv[i]], axis=-1)
         all_pixels.append(ps)

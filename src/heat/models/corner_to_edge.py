@@ -11,7 +11,7 @@ LOCAL_MAX_THRESH = 0.01
 viz_count = 0
 
 # pre-compute all combinations to generate edge candidates faster
-all_combinations = dict()
+all_combinations = {}
 for length in range(0, 351):
     ids = np.arange(length)
     combs = np.array(list(itertools.combinations(ids, 2)), dtype=np.int_)
@@ -21,7 +21,7 @@ for length in range(0, 351):
 def prepare_edge_data(c_outputs, annots, images, max_corner_num):
     bs = c_outputs.shape[0]
     # prepares parameters for each sample of the batch
-    all_results = list()
+    all_results = []
 
     for b_i in range(bs):
         annot = annots[b_i]
@@ -53,7 +53,7 @@ def process_annot(annot, do_round=True):
     corners = corners[ind]  # sorted by y, then x
     corner_mapping = {tuple(k): v for v, k in enumerate(corners)}
 
-    edges = list()
+    edges = []
     for c, connections in annot.items():
         for other_c in connections:
             edge_pair = (corner_mapping[c], corner_mapping[tuple(other_c)])
@@ -105,8 +105,8 @@ def get_edge_label_mix_gt(pred_corners, annot, max_corner_num):
     pred_corners = pred_corners[ind]  # sorted by y, then x
     gt_corners, edge_pairs, corner_degrees = process_annot(annot)
 
-    output_to_gt = dict()
-    gt_to_output = dict()
+    output_to_gt = {}
+    gt_to_output = {}
     diff = np.sqrt(((pred_corners[:, None] - gt_corners) ** 2).sum(-1))
     diff = diff.T
 

@@ -5,11 +5,11 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 
-from .datasets.data_utils import get_pixel_features
-from .infer import get_results, postprocess_predicates
-from .models.corner_models import HeatCorner
-from .models.edge_models import HeatEdge
-from .models.resnet import ResNetBackbone
+from heat.datasets.data_utils import get_pixel_features
+from heat.infer import get_results, postprocess_predicates
+from heat.models.corner_models import HeatCorner
+from heat.models.edge_models import HeatEdge
+from heat.models.resnet import ResNetBackbone
 
 
 class HEAT:

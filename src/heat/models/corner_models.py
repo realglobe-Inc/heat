@@ -126,7 +126,7 @@ class HeatCorner(nn.Module):
         masks = []
         all_pos = []
 
-        new_features = list()
+        new_features = []
         for name, x in sorted(features.items()):
             new_features.append(x)
         features = new_features
@@ -231,7 +231,7 @@ class CornerTransformer(nn.Module):
         dec_n_points=4,
         enc_n_points=4,
     ):
-        super(CornerTransformer, self).__init__()
+        super().__init__()
 
         encoder_layer = DeformableTransformerEncoderLayer(
             d_model,

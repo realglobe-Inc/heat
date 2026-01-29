@@ -18,6 +18,11 @@ except ImportError as e:
     _import_error = str(e)
 
 
+from torch.autograd import Function
+from torch.autograd.function import once_differentiable
+from torch.nn import functional
+
+
 def is_extension_available() -> bool:
     """
     Check if the C++ extension (MultiScaleDeformableAttention) is available.
@@ -34,11 +39,6 @@ def get_extension_error() -> str | None:
     :returns: Error message or None if it was loaded successfully.
     """
     return _import_error
-
-
-from torch.autograd import Function
-from torch.autograd.function import once_differentiable
-from torch.nn import functional
 
 
 class MSDeformAttnFunction(Function):

@@ -110,7 +110,7 @@ class HeatEdge(nn.Module):
         masks = []
         all_pos = []
 
-        new_features = list()
+        new_features = []
         for name, x in sorted(features.items()):
             new_features.append(x)
         features = new_features
@@ -146,7 +146,7 @@ class HeatEdge(nn.Module):
         num_edges = edge_masks.size(1)
 
         corner_feats = corner_outputs
-        edge_feats = list()
+        edge_feats = []
         for b_i in range(bs):
             feats = corner_feats[
                 b_i, edge_coords[b_i, :, :, 1], edge_coords[b_i, :, :, 0], :
@@ -212,7 +212,7 @@ class EdgeTransformer(nn.Module):
         dec_n_points=4,
         enc_n_points=4,
     ):
-        super(EdgeTransformer, self).__init__()
+        super().__init__()
 
         encoder_layer = DeformableTransformerEncoderLayer(
             d_model,
@@ -447,12 +447,12 @@ class EdgeTransformer(nn.Module):
         predicates = logits.detach().softmax(1)[:, 1, :]  # BxL
         predicates[key_padding_mask == True] = -1  # ignore the masking parts
         sorted_ids = torch.argsort(predicates, dim=-1, descending=True)
-        filtered_hs = list()
-        filtered_mask = list()
-        filtered_query = list()
-        filtered_rp = list()
-        filtered_labels = list()
-        selected_ids = list()
+        filtered_hs = []
+        filtered_mask = []
+        filtered_query = []
+        filtered_rp = []
+        filtered_labels = []
+        selected_ids = []
         for b_i in range(b):
             num_candidates = corner_nums[b_i] * 3
             ids = sorted_ids[b_i, : max_candidates[b_i]]
