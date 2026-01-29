@@ -5,7 +5,7 @@ import os
 def build(setup_kwargs):
     try:
         import torch
-        from torch.utils.cpp_extension import CUDAExtension, CUDA_HOME, BuildExtension
+        from torch.utils.cpp_extension import CUDA_HOME, BuildExtension, CUDAExtension
     except ImportError:
         # ビルド環境のセットアップ中などで torch がまだ利用できない場合はスキップ
         return

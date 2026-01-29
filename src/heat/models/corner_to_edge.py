@@ -268,7 +268,7 @@ def _visualize_edge_training_data(corners, edges, edge_labels, image, save_path)
     image = (image * 255).astype(np.uint8)
     image = np.ascontiguousarray(image)
 
-    for edge, label in zip(edges, edge_labels):
+    for edge, label in zip(edges, edge_labels, strict=False):
         if label == 1:
             cv2.line(
                 image,

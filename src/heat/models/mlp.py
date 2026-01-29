@@ -11,7 +11,8 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
         self.layers = nn.ModuleList(
-            nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])
+            nn.Linear(n, k)
+            for n, k in zip([input_dim] + h, h + [output_dim], strict=False)
         )
 
     def forward(self, x):

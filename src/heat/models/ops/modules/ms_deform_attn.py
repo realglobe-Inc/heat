@@ -6,9 +6,6 @@
 # Modified from https://github.com/chengdazhi/Deformable-Convolution-V2-PyTorch/tree/pytorch_1.0.0
 # ------------------------------------------------------------------------------------------------
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import math
 import warnings
@@ -16,16 +13,14 @@ import warnings
 import torch
 from torch import nn
 from torch.nn import functional
-from torch.nn.init import xavier_uniform_, constant_
+from torch.nn.init import constant_, xavier_uniform_
 
 from ..functions import MSDeformAttnFunction
 
 
 def _is_power_of_2(n):
     if (not isinstance(n, int)) or (n < 0):
-        raise ValueError(
-            "invalid input for _is_power_of_2: {} (type: {})".format(n, type(n))
-        )
+        raise ValueError(f"invalid input for _is_power_of_2: {n} (type: {type(n)})")
     return (n & (n - 1) == 0) and n != 0
 
 
@@ -41,9 +36,7 @@ class MSDeformAttn(nn.Module):
         super().__init__()
         if d_model % n_heads != 0:
             raise ValueError(
-                "d_model must be divisible by n_heads, but got {} and {}".format(
-                    d_model, n_heads
-                )
+                f"d_model must be divisible by n_heads, but got {d_model} and {n_heads}"
             )
         _d_per_head = d_model // n_heads
         # you'd better set _d_per_head to a power of 2 which is more efficient in our CUDA implementation
@@ -145,9 +138,7 @@ class MSDeformAttn(nn.Module):
             )
         else:
             raise ValueError(
-                "Last dim of reference_points must be 2 or 4, but get {} instead.".format(
-                    reference_points.shape[-1]
-                )
+                f"Last dim of reference_points must be 2 or 4, but get {reference_points.shape[-1]} instead."
             )
         output = MSDeformAttnFunction.apply(
             value,

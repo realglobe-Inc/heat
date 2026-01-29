@@ -1,5 +1,4 @@
 import math
-from typing import Dict
 
 import numpy as np
 import torch
@@ -9,10 +8,10 @@ from torch.nn import functional
 from torch.nn.init import normal_
 
 from ..models.deformable_transformer import (
-    DeformableTransformerEncoderLayer,
-    DeformableTransformerEncoder,
-    DeformableTransformerDecoder,
     DeformableAttnDecoderLayer,
+    DeformableTransformerDecoder,
+    DeformableTransformerEncoder,
+    DeformableTransformerEncoderLayer,
 )
 from ..models.ops.modules import MSDeformAttn
 from ..models.resnet import conv_relu
@@ -95,7 +94,7 @@ class HeatCorner(nn.Module):
 
     @staticmethod
     def get_ms_feat(xs, img_mask):
-        out: Dict[str, NestedTensor] = {}
+        out: dict[str, NestedTensor] = {}
         for name, x in sorted(xs.items()):
             m = img_mask
             # assert m is not None
@@ -297,7 +296,9 @@ class CornerTransformer(nn.Module):
         mask_flatten = []
         lvl_pos_embed_flatten = []
         spatial_shapes = []
-        for lvl, (src, mask, pos_embed) in enumerate(zip(srcs, masks, pos_embeds)):
+        for lvl, (src, mask, pos_embed) in enumerate(
+            zip(srcs, masks, pos_embeds, strict=False)
+        ):
             bs, c, h, w = src.shape
             spatial_shape = (h, w)
             spatial_shapes.append(spatial_shape)

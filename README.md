@@ -153,7 +153,7 @@ poetry install
 ### コードフォーマット
 
 ```bash
-poetry run black src/
+poetry run ruff format .
 ```
 
 ## ライセンス

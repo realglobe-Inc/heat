@@ -12,8 +12,7 @@ def random_blur(radius=2.0):
     return full_transform
 
 
-class ImageFilterTransform(object):
-
+class ImageFilterTransform:
     def __init__(self):
         raise NotImplementedError
 
@@ -22,7 +21,6 @@ class ImageFilterTransform(object):
 
 
 class GaussianBlur(ImageFilterTransform):
-
     def __init__(self, radius=2.0):
         self.filter = ImageFilter.GaussianBlur(radius=radius)
 

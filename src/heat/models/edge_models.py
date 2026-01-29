@@ -1,4 +1,3 @@
-# coding=utf-8
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,11 +6,11 @@ from torch.nn.init import normal_
 
 from ..models.corner_models import PositionEmbeddingSine
 from ..models.deformable_transformer import (
-    DeformableTransformerEncoderLayer,
-    DeformableTransformerEncoder,
+    DeformableAttnDecoderLayer,
     DeformableTransformerDecoder,
     DeformableTransformerDecoderLayer,
-    DeformableAttnDecoderLayer,
+    DeformableTransformerEncoder,
+    DeformableTransformerEncoderLayer,
 )
 from ..models.mlp import MLP
 from ..models.ops.modules import MSDeformAttn
@@ -314,7 +313,9 @@ class EdgeTransformer(nn.Module):
         mask_flatten = []
         lvl_pos_embed_flatten = []
         spatial_shapes = []
-        for lvl, (src, mask, pos_embed) in enumerate(zip(srcs, masks, pos_embeds)):
+        for lvl, (src, mask, pos_embed) in enumerate(
+            zip(srcs, masks, pos_embeds, strict=False)
+        ):
             bs, c, h, w = src.shape
             spatial_shape = (h, w)
             spatial_shapes.append(spatial_shape)

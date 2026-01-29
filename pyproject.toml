@@ -38,12 +38,12 @@ build = "src/heat/models/ops/build.py"
 heat-infer = "heat.infer:main"
 
 [tool.poetry.group.dev.dependencies]
-black = "^26.1.0"
+ruff = "^0.9.4"
 pytest = "^9.0.2"
 scipy-stubs = "^1.17.0.2"
 ninja = "^1.13.0"
 
-
+# CUDA 13.0対応
 [[tool.poetry.source]]
 name = "pytorch_cu130"
 url = "https://download.pytorch.org/whl/cu130"
@@ -53,5 +53,20 @@ priority = "explicit"
 [tool.poetry.dependencies]
 torch = {source = "pytorch_cu130"}
 torchvision = {source = "pytorch_cu130"}
-[tool.isort]
-profile = "black"
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "C4", "SIM", "UP", "N"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["heat"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

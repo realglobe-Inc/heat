@@ -1,7 +1,6 @@
 import datetime
 import time
 from collections import defaultdict, deque
-from typing import Optional
 
 import torch
 from torch import Tensor
@@ -26,7 +25,7 @@ def accuracy(output, target, top_k=(1,)):
     return res
 
 
-class SmoothedValue(object):
+class SmoothedValue:
     """Track a series of values and provide access to smoothed values over a
     window or the global series average.
     """
@@ -77,7 +76,7 @@ class SmoothedValue(object):
         )
 
 
-class MetricLogger(object):
+class MetricLogger:
     def __init__(self, delimiter="\t"):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
@@ -95,13 +94,13 @@ class MetricLogger(object):
         if attr in self.__dict__:
             return self.__dict__[attr]
         raise AttributeError(
-            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
+            f"'{type(self).__name__}' object has no attribute '{attr}'"
         )
 
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append("{}: {}".format(name, str(meter)))
+            loss_str.append(f"{name}: {str(meter)}")
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -181,14 +180,12 @@ class MetricLogger(object):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print(
-            "{} Total time: {} ({:.4f} s / it)".format(
-                header, total_time_str, total_time / length_total
-            )
+            f"{header} Total time: {total_time_str} ({total_time / length_total:.4f} s / it)"
         )
 
 
-class NestedTensor(object):
-    def __init__(self, tensors, mask: Optional[Tensor]):
+class NestedTensor:
+    def __init__(self, tensors, mask: Tensor | None):
         self.tensors = tensors
         self.mask = mask
 
