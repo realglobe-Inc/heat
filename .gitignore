@@ -17,3 +17,4 @@ montefloor_data
 # 環境変数設定
 /heat
 *.pth
+/build
