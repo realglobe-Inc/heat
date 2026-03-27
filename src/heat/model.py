@@ -6,7 +6,7 @@ import torch
 from numpy.typing import NDArray
 
 from heat.datasets.data_utils import get_pixel_features
-from heat.infer import get_results, postprocess_predicates
+from heat.infer import get_results_batch, postprocess_predicates
 from heat.models.corner_models import HeatCorner
 from heat.models.edge_models import HeatEdge
 from heat.models.resnet import ResNetBackbone
@@ -77,16 +77,29 @@ class HEAT:
             return self._checkpoint_args.image_size
         return None
 
-    def infer(self, bgr_image: NDArray[np.uint8], infer_times=3):
+    def infer(self, bgr_image: NDArray[np.uint8], infer_times: int = 3):
         """
         与えられたBGR画像に対して、事前学習済みモデルを用いてコーナーとエッジを予測する推論を実行します。
         このメソッドは入力画像を処理し、ニューラルネットワークモデルに通し、後処理を適用した後に予測されたコーナーとエッジを返します。
 
         :param bgr_image:  `np.uint8`型NumPy配列で表される、BGR色空間の入力画像。
         :param infer_times: 実行する推論パスの数。デフォルトは3。
-        :return: 以下の要素を含むタプル:
+        :returns: 以下の要素を含むタプル:
             - `pred_corners` (np.ndarray): 予測されたコーナーポイント。
             - `pos_edges` (np.ndarray): コーナー間の予測されたエッジ。
+        """
+        results = self.infer_batch([bgr_image], infer_times)
+        return results[0]
+
+    def infer_batch(
+        self, bgr_images: list[NDArray[np.uint8]], infer_times: int = 3
+    ) -> list[tuple[NDArray[np.float64], NDArray[np.int32]]]:
+        """
+        与えられた複数のBGR画像に対して、推論を一括実行します。
+
+        :param bgr_images: `np.uint8`型NumPy配列のリスト。
+        :param infer_times: 各画像に対して実行する推論パスの数。デフォルトは3。
+        :returns: 各画像に対する (pred_corners, pos_edges) のタプルのリスト。
         """
         self._backbone.eval()
         self._corner_model.eval()
@@ -96,11 +109,6 @@ class HEAT:
             self._checkpoint_args.image_size
             if hasattr(self._checkpoint_args, "image_size")
             else 256
-        )
-
-        x = bgr_image.transpose(2, 0, 1) / 255.0
-        x = torch.from_numpy(x[np.newaxis, :, :, :]).to(
-            dtype=torch.float, device=self._device
         )
 
         if (
@@ -114,10 +122,21 @@ class HEAT:
             self._pixel_features = self._pixel_features.to(self._device)
             self._cached_image_size = image_size
 
+        # すべての画像を1つのバッチにまとめる
+        x_list = []
+        for bgr_image in bgr_images:
+            x = bgr_image.transpose(2, 0, 1) / 255.0
+            x_list.append(torch.from_numpy(x).to(dtype=torch.float))
+        x_batch = torch.stack(x_list).to(device=self._device)
+
         with torch.inference_mode():
-            pred_corners, pred_confs, pos_edges, _, _ = get_results(
-                x,
-                self._backbone,
+            # バックボーンの計算を一括で行う
+            xs, mask, all_feats = self._backbone(x_batch)
+
+            # バッチ推論の実行
+            results = get_results_batch(
+                x_batch,
+                None,
                 self._corner_model,
                 self._edge_model,
                 self._pixels,
@@ -126,13 +145,21 @@ class HEAT:
                 infer_times,
                 corner_thresh=0.01,
                 image_size=image_size,
+                backbone_results=(xs, mask, all_feats),
             )
 
-        if pred_confs.shape[0] == 0:
-            pred_confs = None
+            batch_results = []
+            for i in range(len(bgr_images)):
+                pred_corners, pred_confs, pos_edges, edge_confs, c_outputs_np = results[
+                    i
+                ]
 
-        pred_corners, _, pos_edges = postprocess_predicates(
-            pred_corners, pred_confs, pos_edges
-        )
+                if pred_confs.shape[0] == 0:
+                    pred_confs = None
 
-        return pred_corners, pos_edges
+                pred_corners, _, pos_edges = postprocess_predicates(
+                    pred_corners, pred_confs, pos_edges
+                )
+                batch_results.append((pred_corners, pos_edges))
+
+        return batch_results
