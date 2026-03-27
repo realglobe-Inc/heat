@@ -77,7 +77,9 @@ class HEAT:
             return self._checkpoint_args.image_size
         return None
 
-    def infer(self, bgr_image: NDArray[np.uint8], infer_times: int = 3):
+    def infer(
+        self, bgr_image: NDArray[np.uint8], infer_times: int = 3
+    ) -> tuple[NDArray[np.float64], NDArray[np.int32]]:
         """
         与えられたBGR画像に対して、事前学習済みモデルを用いてコーナーとエッジを予測する推論を実行します。
         このメソッドは入力画像を処理し、ニューラルネットワークモデルに通し、後処理を適用した後に予測されたコーナーとエッジを返します。
