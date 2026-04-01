@@ -447,6 +447,9 @@ class EdgeTransformer(nn.Module):
         predicates = logits.detach().softmax(1)[:, 1, :]  # BxL
         predicates[key_padding_mask == True] = -1  # ignore the masking parts
         sorted_ids = torch.argsort(predicates, dim=-1, descending=True)
+
+        max_batch_candidates = max_candidates.max().item()
+
         filtered_hs = []
         filtered_mask = []
         filtered_query = []
@@ -455,15 +458,28 @@ class EdgeTransformer(nn.Module):
         selected_ids = []
         for b_i in range(b):
             num_candidates = corner_nums[b_i] * 3
-            ids = sorted_ids[b_i, : max_candidates[b_i]]
+            # Current image's candidates
+            curr_max = max_candidates[b_i].item()
+            ids = sorted_ids[b_i, :curr_max]
+
+            # Padding
+            if curr_max < max_batch_candidates:
+                pad_size = max_batch_candidates - curr_max
+                # Use the first id for padding but it will be masked anyway
+                pad_ids = ids[:1].expand(pad_size)
+                ids = torch.cat([ids, pad_ids], dim=0)
+
             filtered_hs.append(hs[b_i][ids])
             new_mask = key_padding_mask[b_i][ids]
             new_mask[num_candidates:] = True
+            if curr_max < max_batch_candidates:
+                new_mask[curr_max:] = True
             filtered_mask.append(new_mask)
             filtered_query.append(query[b_i][ids])
             filtered_rp.append(rp[b_i][ids])
             filtered_labels.append(labels[b_i][ids])
             selected_ids.append(ids)
+
         filtered_hs = torch.stack(filtered_hs, dim=0)
         filtered_mask = torch.stack(filtered_mask, dim=0)
         filtered_query = torch.stack(filtered_query, dim=0)
