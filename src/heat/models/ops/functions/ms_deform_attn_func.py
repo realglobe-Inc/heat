@@ -5,12 +5,12 @@
 # ------------------------------------------------------------------------------------------------
 # Modified from https://github.com/chengdazhi/Deformable-Convolution-V2-PyTorch/tree/pytorch_1.0.0
 # ------------------------------------------------------------------------------------------------
-
+import importlib
 
 import torch
 
 try:
-    import MultiScaleDeformableAttention as msda
+    msda = importlib.import_module("heat.models.ops.MultiScaleDeformableAttention")
 
     _import_error = None
 except ImportError as e:

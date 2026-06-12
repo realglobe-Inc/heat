@@ -1,5 +1,14 @@
 import glob
 import os
+from pathlib import Path
+
+EXTENSION_NAME = "heat.models.ops.MultiScaleDeformableAttention"
+
+
+def should_build_cuda_extension(torch, cuda_home: str | None) -> bool:
+    if cuda_home is None:
+        return False
+    return torch.cuda.is_available() or bool(os.environ.get("TORCH_CUDA_ARCH_LIST"))
 
 
 def build(setup_kwargs):
@@ -7,27 +16,27 @@ def build(setup_kwargs):
         import torch
         from torch.utils.cpp_extension import CUDA_HOME, BuildExtension, CUDAExtension
     except ImportError:
-        # ビルド環境のセットアップ中などで torch がまだ利用できない場合はスキップ
         return
 
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    extensions_dir = os.path.join(this_dir, "src")
+    project_root = Path(__file__).resolve().parents[4]
+    extensions_dir = project_root / "src" / "heat" / "models" / "ops" / "src"
 
     main_file = glob.glob(os.path.join(extensions_dir, "*.cpp"))
     source_cpu = glob.glob(os.path.join(extensions_dir, "cpu", "*.cpp"))
 
-    # Always include CPU sources
     sources = main_file + source_cpu
 
-    include_dirs = [extensions_dir]
-    define_macros = []
-    extra_compile_args = {"cxx": ["-Wno-error", "-w"]}
+    include_dirs = [extensions_dir.relative_to(project_root).as_posix()]
 
-    if torch.cuda.is_available() and CUDA_HOME is not None:
-        source_cuda = glob.glob(os.path.join(extensions_dir, "cuda", "*.cu"))
-        sources += source_cuda
-        define_macros += [("WITH_CUDA", True)]
-        extra_compile_args["nvcc"] = [
+    if not should_build_cuda_extension(torch, CUDA_HOME):
+        return
+
+    source_cuda = glob.glob(os.path.join(extensions_dir, "cuda", "*.cu"))
+    sources += source_cuda
+    define_macros = [("WITH_CUDA", True)]
+    extra_compile_args = {
+        "cxx": ["-Wno-error", "-w"],
+        "nvcc": [
             "-DCUDA_HAS_FP16=1",
             "--expt-relaxed-constexpr",
             "--expt-extended-lambda",
@@ -40,15 +49,12 @@ def build(setup_kwargs):
             "-Xcompiler",
             "-fpermissive",
             "-diag-suppress=20011",
-        ]
-        extension_class = CUDAExtension
-    else:
-        # Fallback to CPU only if CUDA is not available
-        extension_class = torch.utils.cpp_extension.CppExtension
+        ],
+    }
 
-    extension = extension_class(
-        "MultiScaleDeformableAttention",
-        [os.path.join(extensions_dir, s) for s in sources],
+    extension = CUDAExtension(
+        EXTENSION_NAME,
+        [Path(s).relative_to(project_root).as_posix() for s in sources],
         include_dirs=include_dirs,
         define_macros=define_macros,
         extra_compile_args=extra_compile_args,

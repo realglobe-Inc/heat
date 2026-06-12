@@ -10,10 +10,17 @@ import glob
 import os
 
 import torch
-from setuptools import find_packages, setup
-from torch.utils.cpp_extension import CUDA_HOME, CppExtension, CUDAExtension
+from setuptools import setup
+from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
 requirements = ["torch", "torchvision"]
+EXTENSION_NAME = "heat.models.ops.MultiScaleDeformableAttention"
+
+
+def should_build_cuda_extension() -> bool:
+    if CUDA_HOME is None:
+        return False
+    return torch.cuda.is_available() or bool(os.environ.get("TORCH_CUDA_ARCH_LIST"))
 
 
 def get_extensions():
@@ -25,14 +32,15 @@ def get_extensions():
     source_cuda = glob.glob(os.path.join(extensions_dir, "cuda", "*.cu"))
 
     sources = main_file + source_cpu
-    extra_compile_args = {"cxx": ["-Wno-error", "-w"]}
-    define_macros = []
+    if not should_build_cuda_extension():
+        print("CUDA extension build skipped; inference will use the PyTorch fallback.")
+        return []
 
-    if torch.cuda.is_available() and CUDA_HOME is not None:
-        extension = CUDAExtension
-        sources += source_cuda
-        define_macros += [("WITH_CUDA", True)]
-        extra_compile_args["nvcc"] = [
+    sources += source_cuda
+    define_macros = [("WITH_CUDA", True)]
+    extra_compile_args = {
+        "cxx": ["-Wno-error", "-w"],
+        "nvcc": [
             "-DCUDA_HAS_FP16=1",
             "--expt-relaxed-constexpr",
             "--expt-extended-lambda",
@@ -45,20 +53,19 @@ def get_extensions():
             "-Xcompiler",
             "-fpermissive",
             "-diag-suppress=20011",  # Support for CUDA 13.x sinpi/cospi warnings
-        ]
-    else:
-        extension = CppExtension
+        ],
+    }
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
     include_dirs = [extensions_dir]
     print("sources:", sources)
     print("include_dirs:", include_dirs)
-    print("extension", extension)
+    print("extension", CUDAExtension)
     print("define_macros", define_macros)
     print("extra_compile_args", extra_compile_args)
     ext_modules = [
-        extension(
-            "MultiScaleDeformableAttention",
+        CUDAExtension(
+            EXTENSION_NAME,
             sources,
             include_dirs=include_dirs,
             define_macros=define_macros,
@@ -71,15 +78,10 @@ def get_extensions():
 setup(
     name="MultiScaleDeformableAttention",
     version="1.0",
+    package_dir={"heat.models.ops": "."},
     author="Weijie Su",
     url="https://github.com/fundamentalvision/Deformable-DETR",
     description="PyTorch Wrapper for CUDA Functions of Multi-Scale Deformable Attention",
-    packages=find_packages(
-        exclude=(
-            "configs",
-            "tests",
-        )
-    ),
     ext_modules=get_extensions(),
     cmdclass={
         "build_ext": torch.utils.cpp_extension.BuildExtension.with_options(
