@@ -7,21 +7,22 @@ from torch import nn
 from torch.nn import functional
 from torch.nn.init import normal_
 
-from ..models.deformable_transformer import (
+from heat.models.deformable_transformer import (
     DeformableAttnDecoderLayer,
     DeformableTransformerDecoder,
     DeformableTransformerEncoder,
     DeformableTransformerEncoderLayer,
 )
-from ..models.ops.modules import MSDeformAttn
-from ..models.resnet import conv_relu
-from ..utils.misc import NestedTensor
+from heat.models.ops.modules import MSDeformAttn
+from heat.models.resnet import conv_relu
+from heat.utils.misc import NestedTensor
 
 
 class HeatCorner(nn.Module):
     """
-        The corner model of HEAT is the edge model till the edge-filtering part. So only per-candidate prediction w/o
-    relational modeling.
+    The corner model of HEAT is the edge model till the edge-filtering part.
+
+    It only performs per-candidate prediction without relational modeling.
     """
 
     def __init__(
@@ -32,7 +33,7 @@ class HeatCorner(nn.Module):
         backbone_strides,
         backbone_num_channels,
     ):
-        super(HeatCorner, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_feature_levels = num_feature_levels
@@ -48,7 +49,7 @@ class HeatCorner(nn.Module):
                         nn.GroupNorm(32, hidden_dim),
                     )
                 )
-            for i in range(num_feature_levels - num_backbone_outs):
+            for _ in range(num_feature_levels - num_backbone_outs):
                 input_proj_list.append(
                     nn.Sequential(
                         nn.Conv2d(
@@ -127,14 +128,14 @@ class HeatCorner(nn.Module):
         all_pos = []
 
         new_features = []
-        for name, x in sorted(features.items()):
+        for _name, x in sorted(features.items()):
             new_features.append(x)
         features = new_features
 
-        for l, feat in enumerate(features):
+        for level, feat in enumerate(features):
             src, mask = feat.decompose()
             mask = mask.to(src.device)
-            srcs.append(self.input_proj[l](src))
+            srcs.append(self.input_proj[level](src))
             pos = self.img_pos(src).to(src.dtype)
             all_pos.append(pos)
             masks.append(mask)
@@ -142,11 +143,11 @@ class HeatCorner(nn.Module):
 
         if self.num_feature_levels > len(srcs):
             _len_srcs = len(srcs)
-            for l in range(_len_srcs, self.num_feature_levels):
-                if l == _len_srcs:
-                    src = self.input_proj[l](features[-1].tensors)
+            for level in range(_len_srcs, self.num_feature_levels):
+                if level == _len_srcs:
+                    src = self.input_proj[level](features[-1].tensors)
                 else:
-                    src = self.input_proj[l](srcs[-1])
+                    src = self.input_proj[level](srcs[-1])
                 m = feat_mask
                 mask = (
                     functional.interpolate(m[None].float(), size=src.shape[-2:])
@@ -354,8 +355,8 @@ class CornerTransformer(nn.Module):
         return predicates_s1
 
     def generate_corner_predicates(self, outputs, conv_outputs):
-        b, l, c = outputs.shape
-        side = int(np.sqrt(l))
+        b, length, c = outputs.shape
+        side = int(np.sqrt(length))
         outputs = outputs.view(b, side, side, c)
         outputs = outputs.permute(0, 3, 1, 2)
         outputs = torch.cat([outputs, conv_outputs["layer1"]], dim=1)

@@ -4,17 +4,17 @@ import torch.nn as nn
 from torch.nn import functional
 from torch.nn.init import normal_
 
-from ..models.corner_models import PositionEmbeddingSine
-from ..models.deformable_transformer import (
+from heat.models.corner_models import PositionEmbeddingSine
+from heat.models.deformable_transformer import (
     DeformableAttnDecoderLayer,
     DeformableTransformerDecoder,
     DeformableTransformerDecoderLayer,
     DeformableTransformerEncoder,
     DeformableTransformerEncoderLayer,
 )
-from ..models.mlp import MLP
-from ..models.ops.modules import MSDeformAttn
-from ..utils.misc import NestedTensor
+from heat.models.mlp import MLP
+from heat.models.ops.modules import MSDeformAttn
+from heat.utils.misc import NestedTensor
 
 
 class HeatEdge(nn.Module):
@@ -26,7 +26,7 @@ class HeatEdge(nn.Module):
         backbone_strides,
         backbone_num_channels,
     ):
-        super(HeatEdge, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_feature_levels = num_feature_levels
@@ -42,7 +42,7 @@ class HeatEdge(nn.Module):
                         nn.GroupNorm(32, hidden_dim),
                     )
                 )
-            for i in range(num_feature_levels - num_backbone_outs):
+            for _ in range(num_feature_levels - num_backbone_outs):
                 input_proj_list.append(
                     nn.Sequential(
                         nn.Conv2d(
@@ -111,14 +111,14 @@ class HeatEdge(nn.Module):
         all_pos = []
 
         new_features = []
-        for name, x in sorted(features.items()):
+        for _name, x in sorted(features.items()):
             new_features.append(x)
         features = new_features
 
-        for l, feat in enumerate(features):
+        for level, feat in enumerate(features):
             src, mask = feat.decompose()
             mask = mask.to(src.device)
-            srcs.append(self.input_proj[l](src))
+            srcs.append(self.input_proj[level](src))
             pos = self.img_pos(src).to(src.dtype)
             all_pos.append(pos)
             masks.append(mask)
@@ -126,11 +126,11 @@ class HeatEdge(nn.Module):
 
         if self.num_feature_levels > len(srcs):
             _len_srcs = len(srcs)
-            for l in range(_len_srcs, self.num_feature_levels):
-                if l == _len_srcs:
-                    src = self.input_proj[l](features[-1].tensors)
+            for level in range(_len_srcs, self.num_feature_levels):
+                if level == _len_srcs:
+                    src = self.input_proj[level](features[-1].tensors)
                 else:
-                    src = self.input_proj[l](srcs[-1])
+                    src = self.input_proj[level](srcs[-1])
                 m = feat_mask
                 mask = (
                     functional.interpolate(m[None].float(), size=src.shape[-2:])
@@ -249,7 +249,8 @@ class EdgeTransformer(nn.Module):
             dec_n_points,
         )
 
-        # edge decoder w/ self-attention layers (image-aware decoder and geom-only decoder)
+        # edge decoder w/ self-attention layers
+        # (image-aware decoder and geom-only decoder)
         self.relational_decoder = DeformableTransformerDecoder(
             decoder_layer, num_decoder_layers, return_intermediate_dec, with_sa=True
         )
@@ -441,11 +442,11 @@ class EdgeTransformer(nn.Module):
         logits, hs, query, rp, labels, key_padding_mask, corner_nums, max_candidates
     ):
         """
-        Filter out the easy-negatives from the edge candidates and update the edge information correspondingly
+        Filter easy-negatives from edge candidates and update edge information.
         """
-        b, l, _ = hs.shape
+        b, _, _ = hs.shape
         predicates = logits.detach().softmax(1)[:, 1, :]  # BxL
-        predicates[key_padding_mask == True] = -1  # ignore the masking parts
+        predicates[key_padding_mask] = -1  # ignore the masking parts
         sorted_ids = torch.argsort(predicates, dim=-1, descending=True)
 
         max_batch_candidates = max_candidates.max().item()

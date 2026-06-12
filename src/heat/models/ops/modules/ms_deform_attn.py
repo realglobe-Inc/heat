@@ -15,7 +15,7 @@ from torch import nn
 from torch.nn import functional
 from torch.nn.init import constant_, xavier_uniform_
 
-from ..functions import MSDeformAttnFunction
+from heat.models.ops.functions import MSDeformAttnFunction
 
 
 def _is_power_of_2(n):
@@ -43,7 +43,8 @@ class MSDeformAttn(nn.Module):
         if not _is_power_of_2(_d_per_head):
             warnings.warn(
                 "You'd better set d_model in MSDeformAttn to make the dimension of each attention head a power of 2 "
-                "which is more efficient in our CUDA implementation."
+                "which is more efficient in our CUDA implementation.",
+                stacklevel=2,
             )
 
         self.im2col_step = 64

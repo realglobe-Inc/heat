@@ -1,4 +1,5 @@
 import itertools
+from functools import lru_cache
 
 import cv2
 import numpy as np
@@ -10,12 +11,16 @@ MATCH_THRESH = 5
 LOCAL_MAX_THRESH = 0.01
 viz_count = 0
 
-# pre-compute all combinations to generate edge candidates faster
-all_combinations = {}
-for length in range(0, 351):
+
+@lru_cache(maxsize=350)
+def get_all_combinations(length: int) -> np.ndarray:
+    if length < 0:
+        raise ValueError("length must be greater than or equal to 0.")
+    if length < 2:
+        return np.empty((0, 2), dtype=np.int_)
+
     ids = np.arange(length)
-    combs = np.array(list(itertools.combinations(ids, 2)), dtype=np.int_)
-    all_combinations[length] = combs
+    return np.array(list(itertools.combinations(ids, 2)), dtype=np.int_)
 
 
 def prepare_edge_data(c_outputs, annots, images, max_corner_num):
@@ -87,7 +92,9 @@ def process_each_sample(data, max_corner_num):
     # global viz_count
     # viz_img = data['viz_img']
     # output_path = './viz_training/{}_example_gt.png'.format(viz_count)
-    # _visualize_edge_training_data(processed_corners, edges, labels, viz_img, output_path)
+    # _visualize_edge_training_data(
+    #     processed_corners, edges, labels, viz_img, output_path
+    # )
     # viz_count += 1
 
     results = {
@@ -111,7 +118,7 @@ def get_edge_label_mix_gt(pred_corners, annot, max_corner_num):
     diff = diff.T
 
     if len(pred_corners) > 0:
-        for target_i, target in enumerate(gt_corners):
+        for target_i, _target in enumerate(gt_corners):
             dist = diff[target_i]
             if len(output_to_gt) > 0:
                 dist[list(output_to_gt.keys())] = (
@@ -140,7 +147,6 @@ def get_edge_label_mix_gt(pred_corners, annot, max_corner_num):
         if len(nm_pred_ids) + len(all_corners) <= max_corner_num:
             all_corners = np.concatenate([all_corners, nm_pred_corners], axis=0)
         else:
-            # all_corners = np.concatenate([all_corners, nm_pred_corners[:(150 - len(gt_corners)), :]], axis=0)
             all_corners = np.concatenate(
                 [all_corners, nm_pred_corners[: (max_corner_num - len(gt_corners)), :]],
                 axis=0,
@@ -158,7 +164,7 @@ def _get_edges(corners, edge_pairs):
     corners = np.clip(corners, 0, 255)
     id_mapping = {old: new for new, old in enumerate(ind)}
 
-    all_ids = all_combinations[len(corners)]
+    all_ids = get_all_combinations(len(corners))
     edges = corners[all_ids]
     labels = np.zeros(edges.shape[0])
 
@@ -175,7 +181,7 @@ def _get_edges(corners, edge_pairs):
 def collate_edge_info(data):
     batched_data = {}
     lengths_info = {}
-    for field in data.keys():
+    for field in data:
         batch_values = data[field]
         all_lens = [len(value) for value in batch_values]
         max_len = max(all_lens)
@@ -191,7 +197,7 @@ def collate_edge_info(data):
             lengths_info[field] = all_lens
         batched_data[field] = batch_values
 
-    # Add length and mask into the data, the mask if for Transformers' input format, True means padding
+    # Add lengths and masks. For Transformer inputs, True means padding.
     for field, lengths in lengths_info.items():
         lengths_str = field + "_lengths"
         batched_data[lengths_str] = torch.Tensor(lengths).long()
@@ -252,7 +258,7 @@ def get_infer_edge_pairs(corners, confs):
     corners = corners[ind]  # sorted by y, then x
     confs = confs[ind]
 
-    edge_ids = all_combinations[len(corners)]
+    edge_ids = get_all_combinations(len(corners))
     edge_coords = corners[edge_ids]
 
     edge_coords = (

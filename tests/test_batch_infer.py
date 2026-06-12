@@ -6,6 +6,8 @@ import pytest
 
 from heat.model import HEAT
 
+pytestmark = pytest.mark.integration
+
 
 class TestBatchInfer:
     @pytest.fixture

@@ -27,14 +27,7 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[project.scripts]
-heat-infer = "heat.infer:main"
-
 [tool.poetry]
-name = "heat"
-version = "0.1.0"
-description = "HEAT: Height Estimation and Attribute Transfer model"
-authors = ["fukuchidaisuke <fukuchidaisuke@realglobe.jp>"]
 packages = [
     { include = "heat", from = "src" },
 ]
@@ -47,11 +40,14 @@ scipy-stubs = "^1.17.1.5"
 
 [tool.ruff]
 line-length = 88
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "B", "C4", "SIM", "UP", "N", "TID"]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"src/heat/models/ops/**" = ["E501"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -64,3 +60,8 @@ indent-style = "space"
 line-ending = "auto"
 quote-style = "double"
 skip-magic-trailing-comma = false
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that require the pretrained checkpoint and sample image",
+]

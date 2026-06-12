@@ -27,7 +27,7 @@ class GaussianBlur(ImageFilterTransform):
 
 def collate_fn(data):
     batched_data = {}
-    for field in data[0].keys():
+    for field in data[0]:
         if field in ["annot", "rec_mat"]:
             batch_values = [item[field] for item in data]
         else:

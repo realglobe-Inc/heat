@@ -121,13 +121,18 @@ def ms_deform_attn_core_pytorch(
     # need to use cuda version instead
     n_, s_, m_, d_ = value.shape
     _, lq_, m_, l_, p_, _ = sampling_locations.shape
-    value_list = value.split([H_ * W_ for H_, W_ in value_spatial_shapes], dim=1)
+    value_list = value.split(
+        [height * width for height, width in value_spatial_shapes], dim=1
+    )
     sampling_grids = 2 * sampling_locations - 1
     sampling_value_list = []
-    for lid_, (H_, W_) in enumerate(value_spatial_shapes):
+    for lid_, (height, width) in enumerate(value_spatial_shapes):
         # n_, H_*W_, m_, d_ -> n_, H_*W_, m_*d_ -> n_, m_*d_, H_*W_ -> n_*m_, d_, H_, W_
         value_l_ = (
-            value_list[lid_].flatten(2).transpose(1, 2).reshape(n_ * m_, d_, H_, W_)
+            value_list[lid_]
+            .flatten(2)
+            .transpose(1, 2)
+            .reshape(n_ * m_, d_, height, width)
         )
         # n_, lq_, m_, p_, 2 -> n_, m_, lq_, p_, 2 -> n_*m_, lq_, p_, 2
         sampling_grid_l_ = sampling_grids[:, :, :, lid_].transpose(1, 2).flatten(0, 1)

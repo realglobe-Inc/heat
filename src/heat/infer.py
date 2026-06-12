@@ -141,13 +141,13 @@ def get_results(
             pos_edge_ids = np.where(s2_predicates_np >= 0.2)
             for pos_id in pos_edge_ids[0]:
                 actual_id = selected_ids[pos_id]
-                if s2_mask[0][pos_id] is True or gt_values[0, actual_id] != 2:
+                if bool(s2_mask[0, pos_id].item()) or gt_values[0, actual_id] != 2:
                     continue
                 all_pos_ids.add(actual_id)
                 all_edge_confs[actual_id] = s2_predicates_np[pos_id]
 
     # print('Inference time {}'.format(tt+1))
-    pos_edge_ids = list(all_pos_ids)
+    pos_edge_ids = sorted(all_pos_ids)
     edge_confs = [all_edge_confs[idx] for idx in pos_edge_ids]
     pos_edges = edge_ids[pos_edge_ids].cpu().numpy()
     edge_confs = np.array(edge_confs)
@@ -168,7 +168,7 @@ def postprocess_predicates(corners, confs, edges):
         return corners, confs, edges
     else:
         good_corners = corners[good_ids]
-        good_confs = confs[good_ids]
+        good_confs = None if confs is None else confs[good_ids]
         id_mapping = {value: idx for idx, value in enumerate(good_ids)}
         new_edges = []
         for edge_pair in edges:
@@ -350,10 +350,7 @@ def get_results_batch(
                 pos_edge_ids = np.where(s2_pred_np >= 0.2)[0]
                 for pos_id in pos_edge_ids:
                     actual_id = sel_ids[pos_id]
-                    if (
-                        s2_mask_np[idx][pos_id] is True
-                        or gt_values[idx, actual_id] != 2
-                    ):
+                    if s2_mask_np[idx, pos_id] or gt_values[idx, actual_id] != 2:
                         continue
                     all_pos_ids[idx].add(actual_id)
                     all_edge_confs[idx][actual_id] = s2_pred_np[pos_id]
@@ -362,7 +359,7 @@ def get_results_batch(
     v_idx = 0
     for i in range(batch_size):
         if i in valid_batch_indices:
-            p_edge_ids = list(all_pos_ids[v_idx])
+            p_edge_ids = sorted(all_pos_ids[v_idx])
             e_confs = np.array([all_edge_confs[v_idx][idx] for idx in p_edge_ids])
             p_edges = batch_edge_ids_list[v_idx][p_edge_ids].cpu().numpy()
 

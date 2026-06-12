@@ -111,7 +111,6 @@ class MetricLogger:
         self.meters[name] = meter
 
     def log_every(self, iterable, print_freq, header=None, length_total=None):
-        i = 0
         if length_total is None:
             length_total = len(iterable)
         if not header:
@@ -145,7 +144,7 @@ class MetricLogger:
                 ]
             )
         mb = 1024.0 * 1024.0
-        for obj in iterable:
+        for i, obj in enumerate(iterable):
             data_time.update(time.time() - end)
             yield obj
             iter_time.update(time.time() - end)
@@ -175,12 +174,13 @@ class MetricLogger:
                             data=str(data_time),
                         )
                     )
-            i += 1
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        seconds_per_iteration = total_time / length_total
         print(
-            f"{header} Total time: {total_time_str} ({total_time / length_total:.4f} s / it)"
+            f"{header} Total time: {total_time_str} "
+            f"({seconds_per_iteration:.4f} s / it)"
         )
 
 

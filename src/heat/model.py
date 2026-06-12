@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
@@ -14,10 +15,10 @@ from heat.models.resnet import ResNetBackbone
 
 class HEAT:
     _device: Final[torch.device]
-    _backbone: Final[torch.nn.Module]
-    _corner_model: Final[torch.nn.Module]
-    _edge_model: Final[torch.nn.Module]
-    _checkpoint_args: Any
+    _backbone: torch.nn.Module
+    _corner_model: torch.nn.Module
+    _edge_model: torch.nn.Module
+    _checkpoint_args: Any | None
     _pixels: NDArray[Any] | None = None
     _pixel_features: torch.Tensor | None = None
     _cached_image_size: int | None = None
@@ -48,13 +49,15 @@ class HEAT:
             else torch.device("cuda")
         )
 
-        self._backbone = torch.nn.DataParallel(self._backbone)
-        self._corner_model = torch.nn.DataParallel(self._corner_model)
-        self._edge_model = torch.nn.DataParallel(self._edge_model)
+        if self._device.type == "cuda" and torch.cuda.device_count() > 1:
+            self._backbone = torch.nn.DataParallel(self._backbone)
+            self._corner_model = torch.nn.DataParallel(self._corner_model)
+            self._edge_model = torch.nn.DataParallel(self._edge_model)
 
         self._backbone.to(self._device)
         self._corner_model.to(self._device)
         self._edge_model.to(self._device)
+        self._checkpoint_args = None
 
     @property
     def device(self) -> torch.device:
@@ -63,15 +66,15 @@ class HEAT:
         """
         return self._device
 
-    def load_checkpoint(self, checkpoint_path: Path) -> int | None:
+    def load_checkpoint(self, checkpoint_path: str | Path) -> int | None:
         # 学習済みモデルの読み込み
         checkpoint = torch.load(
             checkpoint_path, map_location=self._device, weights_only=False
         )
         self._checkpoint_args = checkpoint["args"]
-        self._backbone.load_state_dict(checkpoint["backbone"])
-        self._corner_model.load_state_dict(checkpoint["corner_model"])
-        self._edge_model.load_state_dict(checkpoint["edge_model"])
+        self._load_state_dict(self._backbone, checkpoint["backbone"])
+        self._load_state_dict(self._corner_model, checkpoint["corner_model"])
+        self._load_state_dict(self._edge_model, checkpoint["edge_model"])
 
         if hasattr(self._checkpoint_args, "image_size"):
             return self._checkpoint_args.image_size
@@ -103,15 +106,13 @@ class HEAT:
         :param infer_times: 各画像に対して実行する推論パスの数。デフォルトは3。
         :returns: 各画像に対する (pred_corners, pos_edges) のタプルのリスト。
         """
+        self._validate_infer_times(infer_times)
+        image_size = self._get_checkpoint_image_size()
+        self._validate_bgr_images(bgr_images, image_size)
+
         self._backbone.eval()
         self._corner_model.eval()
         self._edge_model.eval()
-
-        image_size = (
-            self._checkpoint_args.image_size
-            if hasattr(self._checkpoint_args, "image_size")
-            else 256
-        )
 
         if (
             self._cached_image_size != image_size
@@ -165,3 +166,51 @@ class HEAT:
                 batch_results.append((pred_corners, pos_edges))
 
         return batch_results
+
+    @staticmethod
+    def _load_state_dict(
+        module: torch.nn.Module, state_dict: Mapping[str, Any]
+    ) -> None:
+        module_keys = module.state_dict().keys()
+        module_uses_prefix = next(iter(module_keys), "").startswith("module.")
+        checkpoint_uses_prefix = next(iter(state_dict), "").startswith("module.")
+
+        if checkpoint_uses_prefix and not module_uses_prefix:
+            state_dict = {
+                key.removeprefix("module."): value for key, value in state_dict.items()
+            }
+        elif module_uses_prefix and not checkpoint_uses_prefix:
+            state_dict = {f"module.{key}": value for key, value in state_dict.items()}
+
+        module.load_state_dict(state_dict)
+
+    def _get_checkpoint_image_size(self) -> int:
+        if self._checkpoint_args is None:
+            raise RuntimeError("load_checkpoint() must be called before inference.")
+        if hasattr(self._checkpoint_args, "image_size"):
+            return int(self._checkpoint_args.image_size)
+        return 256
+
+    @staticmethod
+    def _validate_infer_times(infer_times: int) -> None:
+        if infer_times < 1:
+            raise ValueError("infer_times must be greater than or equal to 1.")
+
+    @staticmethod
+    def _validate_bgr_images(
+        bgr_images: Sequence[NDArray[np.uint8]], image_size: int
+    ) -> None:
+        if len(bgr_images) == 0:
+            raise ValueError("bgr_images must contain at least one image.")
+
+        expected_shape = (image_size, image_size, 3)
+        for index, bgr_image in enumerate(bgr_images):
+            if not isinstance(bgr_image, np.ndarray):
+                raise TypeError(f"bgr_images[{index}] must be a numpy.ndarray.")
+            if bgr_image.dtype != np.uint8:
+                raise TypeError(f"bgr_images[{index}] must have dtype uint8.")
+            if bgr_image.shape != expected_shape:
+                raise ValueError(
+                    f"bgr_images[{index}] must have shape {expected_shape}, "
+                    f"but got {bgr_image.shape}."
+                )

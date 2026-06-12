@@ -1,4 +1,4 @@
-from .model import HEAT
+from heat.model import HEAT
 
 __all__ = [
     "HEAT",
