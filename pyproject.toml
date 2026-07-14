@@ -19,10 +19,10 @@ dependencies = [
 
 [build-system]
 requires = [
-    "setuptools>=70,<82",
-    "wheel>=0.43",
-    "torch>=2.12.0,<3.0.0",
-    "torchvision>=0.27.0,<0.28.0",
+    "setuptools>=83,<84",
+    "wheel>=0.47",
+    "torch>=2.13.0,<3.0.0",
+    "torchvision>=0.28.0,<0.29.0",
     "ninja>=1.13.0",
 ]
 build-backend = "setuptools.build_meta"
